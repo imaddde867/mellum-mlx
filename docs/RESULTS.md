@@ -73,7 +73,7 @@ Same synthetic throughput protocol as CUDA: warmup plus three measured greedy tr
 
 The 547-token numerical smoke probe had mean NLL 1.279368. Against the *same MXFP4 artifact on CUDA*, Metal NLL differed by -0.011295 and top-1 predictions agreed on 96.89% of positions. The report's BF16 baseline is the CUDA reference, not a Mac BF16 run; its delta is not a within-Metal quantization-quality estimate. Runtime disagreement remains under investigation. The simple addition tool round trip passed in both live HTTP modes on Metal.
 
-Aggregate system snapshots before/after the initial 1K run are in `results/mac/system-snapshots.json`. Swap was already present and increased between those snapshots; concurrent downloads and other applications prevent attributing that change to inference alone. These snapshots do not measure whole-system peak memory or establish swap-free operation.
+Aggregate system snapshots before/after the initial 1K run are in `results/mac/system-snapshots.json`. Swap usage was 67.94 MB in both committed snapshots. Concurrent downloads and other applications limit interpretation of these snapshots. These snapshots do not measure whole-system peak memory or establish swap-free operation.
 
 ## CUDA cache-boundary diagnostic
 

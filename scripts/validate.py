@@ -23,7 +23,10 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("model", type=Path)
     p.add_argument("--source", type=Path, default=Path("work/source"))
+    p.add_argument("--receipt", type=Path, help="Write a new validation receipt; never overwrite")
     args = p.parse_args()
+    if args.receipt and args.receipt.exists():
+        p.error("Validation receipt already exists")
     from safetensors import safe_open
     from transformers import AutoTokenizer
 
@@ -67,8 +70,14 @@ def main():
         a = original.apply_chat_template(messages, tokenize=True, add_generation_prompt=True, **options)
         b = converted.apply_chat_template(messages, tokenize=True, add_generation_prompt=True, **options)
         require(a == b, "Rendered chat/tool prompt changed")
-    print(json.dumps({"status": "passed", "tensors": len(found),
-        "template_cases": len(cases), "scope": "structural and tokenizer validation; inference not tested"}))
+    receipt = {"status": "passed", "tensors": len(found), "template_cases": len(cases),
+        "conversion_sha256": hashlib.sha256((model / "conversion.json").read_bytes()).hexdigest(),
+        "artifact_sha256": manifest["artifact_sha256"],
+        "scope": "structural and tokenizer validation; inference not tested"}
+    if args.receipt:
+        with args.receipt.open("x") as f:
+            f.write(json.dumps(receipt, indent=2) + "\n")
+    print(json.dumps(receipt))
 
 
 if __name__ == "__main__":

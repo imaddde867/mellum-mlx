@@ -37,3 +37,9 @@ python scripts/evaluate_coding.py work/evalplus/humaneval-4bit.jsonl \
 ```
 
 Repeat with new output names for the other candidates. Generation starts a temporary loopback-only MLX server and stops it in a finalizer; it never executes generated code. Evaluation refuses missing/duplicate task outputs, mismatched generation data, and paths outside the checkout. The sanitizer function is called directly because this image's sanitizer CLI eagerly loads the unrelated MBPP dataset.
+
+## Integrity enforcement
+
+Full generation and evaluation enforce both the exact ordered 164-task set and the pinned dataset SHA-256. Smaller pipeline checks require `--smoke` on both commands and are labeled smoke in their receipts. New generation receipts hash every safetensors weight shard. Runs started before this enforcement retain their original receipts; evaluation labels their weight binding as legacy, separate provenance only, rather than claiming generation-time checksum binding.
+
+Conversion manifests describe the conversion-time state and remain unchanged. `scripts/validate.py MODEL --receipt NEW_PATH` writes a separate validation receipt binding successful structural/tokenizer checks to the conversion manifest and artifact checksums; it refuses an existing receipt.

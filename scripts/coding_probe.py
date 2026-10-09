@@ -16,7 +16,10 @@ from http_probe import request
 INSTRUCTION = "Please provide a self-contained Python script that solves the following problem in a markdown code block:"
 
 
-def validate_tasks(tasks):
+TASKS_SHA256 = "42526ec0e7d5f3ee0b06d6ced98f8c8bae3d76519151bfb3d36f79010645bd7f"
+
+
+def validate_tasks(tasks, smoke=False):
     ids = [task['task_id'] for task in tasks]
     if not tasks or len(ids) != len(set(ids)):
         raise ValueError('Missing or duplicate benchmark tasks')
@@ -26,19 +29,42 @@ def validate_tasks(tasks):
         if not isinstance(task['task_id'], str) or not task['task_id'].startswith('HumanEval/'):
             raise ValueError('Unexpected benchmark task ID')
 
+    if not smoke and ids != [f'HumanEval/{i}' for i in range(164)]:
+        raise ValueError('Full evaluation requires all 164 tasks in numeric order')
+
+
+def load_tasks(path, smoke=False):
+    data = path.read_bytes()
+    tasks = [json.loads(line) for line in data.splitlines()]
+    validate_tasks(tasks, smoke=smoke)
+    if not smoke and hashlib.sha256(data).hexdigest() != TASKS_SHA256:
+        raise ValueError('Dataset differs from the pinned HumanEval+ export')
+    return tasks
+
+
+def weight_hashes(model):
+    paths = sorted(Path(model).glob('*.safetensors'))
+    if not paths:
+        raise ValueError('No model weight shards found')
+    hashes = {}
+    for path in paths:
+        with path.open('rb') as f:
+            hashes[path.name] = hashlib.file_digest(f, 'sha256').hexdigest()
+    return hashes
+
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('model')
     p.add_argument('--tasks', type=Path, default=Path('work/evalplus/humaneval-plus.jsonl'))
     p.add_argument('--output', type=Path, required=True)
+    p.add_argument('--smoke', action='store_true', help='Allow subsets; never a full benchmark')
     args = p.parse_args()
     raw_path = args.output.with_suffix('.raw.jsonl')
     receipt_path = args.output.with_suffix('.receipt.json')
     if args.output.suffix != '.jsonl' or any(path.exists() for path in [args.output, raw_path, receipt_path]):
         p.error('Use a new .jsonl output; refusing to overwrite benchmark evidence')
-    tasks = [json.loads(line) for line in args.tasks.read_text().splitlines()]
-    validate_tasks(tasks)
+    tasks = load_tasks(args.tasks, smoke=args.smoke)
     os.environ['HF_HOME'] = str(Path('work/hf-cache').resolve())
     Path(os.environ['HF_HOME'], 'hub').mkdir(parents=True, exist_ok=True)
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -46,7 +72,8 @@ def main():
         s.bind(('127.0.0.1', 0))
         port = s.getsockname()[1]
     url = f'http://127.0.0.1:{port}/v1'
-    receipt = {'model': args.model, 'task_ids': [t['task_id'] for t in tasks],
+    receipt = {'model': args.model, 'mode': 'smoke' if args.smoke else 'full',
+        'weights_sha256': weight_hashes(args.model), 'task_ids': [t['task_id'] for t in tasks],
         'tasks_sha256': hashlib.sha256(args.tasks.read_bytes()).hexdigest(),
         'config_sha256': hashlib.sha256((Path(args.model) / 'config.json').read_bytes()).hexdigest(),
         'mlx': importlib.metadata.version('mlx'), 'mlx_lm': importlib.metadata.version('mlx-lm'),

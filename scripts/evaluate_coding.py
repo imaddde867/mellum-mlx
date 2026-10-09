@@ -6,13 +6,13 @@ import os
 import subprocess
 from pathlib import Path
 
-from coding_probe import validate_tasks
+from coding_probe import validate_tasks, load_tasks
 
 IMAGE = 'ganler/evalplus@sha256:26b118098bef281fe8dfe999bf05f1d5b45374b4e6c00161ec0f30592aef4740'
 
 
-def check_samples(tasks, samples):
-    validate_tasks(tasks)
+def check_samples(tasks, samples, smoke=False):
+    validate_tasks(tasks, smoke=smoke)
     expected = [task['task_id'] for task in tasks]
     if [sample['task_id'] for sample in samples] != expected:
         raise ValueError('Samples must contain exactly one ordered result for every task')
@@ -25,11 +25,14 @@ def main():
     p.add_argument('samples', type=Path)
     p.add_argument('--tasks', type=Path, default=Path('work/evalplus/humaneval-plus.jsonl'))
     p.add_argument('--output', type=Path, required=True)
+    p.add_argument('--smoke', action='store_true', help='Evaluate a subset; never a full benchmark')
     args = p.parse_args()
-    tasks = [json.loads(line) for line in args.tasks.read_text().splitlines()]
+    tasks = load_tasks(args.tasks, smoke=args.smoke)
     samples = [json.loads(line) for line in args.samples.read_text().splitlines()]
-    check_samples(tasks, samples)
+    check_samples(tasks, samples, smoke=args.smoke)
     receipt = json.loads(args.samples.with_suffix('.receipt.json').read_text())
+    if receipt.get('mode', 'full') != ('smoke' if args.smoke else 'full'):
+        p.error('Generation and evaluation modes differ')
     if receipt['status'] != 'generation_complete' or receipt['completed'] != len(tasks):
         p.error('Generation did not complete')
     if receipt['tasks_sha256'] != hashlib.sha256(args.tasks.read_bytes()).hexdigest():
@@ -59,7 +62,10 @@ subprocess.run(['evalplus.evaluate', '--dataset', 'humaneval', '--samples',
         '--mount', f'type=bind,src={paths[0]},dst=/input/tasks.jsonl,readonly',
         '--mount', f'type=bind,src={paths[1]},dst=/input/samples.jsonl,readonly',
         '--mount', f'type=bind,src={paths[2]},dst=/output', '-w', '/output', IMAGE, 'python3', '-']
-    protocol = {'image': IMAGE, 'evalplus': '0.4.0.dev2', 'network': 'none',
+    protocol = {'mode': 'smoke' if args.smoke else 'full',
+        'weights_sha256': receipt.get('weights_sha256'),
+        'weight_binding': 'generation-time checksums' if receipt.get('weights_sha256') else 'legacy run: separate provenance only',
+        'image': IMAGE, 'evalplus': '0.4.0.dev2', 'network': 'none',
         'run_as_invoking_user': True, 'read_only_root': True, 'cpus': 2,
         'container_memory_gb_binary': 4, 'parallel_workers': 2,
         'task_sha256': receipt['tasks_sha256'], 'tasks': len(tasks),

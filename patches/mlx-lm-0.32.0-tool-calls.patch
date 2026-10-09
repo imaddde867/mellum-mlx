@@ -1,0 +1,83 @@
+diff -ru a/mlx_lm/server.py b/mlx_lm/server.py
+--- a/mlx_lm/server.py	2026-10-09 12:40:57.295323987 +0000
++++ b/mlx_lm/server.py	2026-10-09 12:40:57.390429234 +0000
+@@ -57,6 +57,8 @@
+ class ToolCallFormatter:
+     def __init__(self, tool_parser, tools, streaming=False):
+         self._idx = 0
++        self.emitted = 0
++        self.failed = []
+         self._tool_parser = tool_parser
+         self._tools = tools
+         self._streaming = streaming
+@@ -87,12 +89,20 @@
+                     f"Failed to parse tool call ({type(e).__name__}: {e}) — "
+                     f"tool text was likely truncated mid-generation."
+                 )
++                self.failed.append(tool_text)
+                 continue
+             if not isinstance(parsed, list):
+                 parsed = [parsed]
+             result.extend(self._format(tc) for tc in parsed)
++        self.emitted += len(result)
+         return result
+ 
++    def take_failed_text(self):
++        """Return unparsed calls verbatim so clients can see and repair them."""
++        text = "".join(f"<tool_call>{t}</tool_call>" for t in self.failed)
++        self.failed = []
++        return text
++
+ 
+ def convert_chat(messages: List[dict], role_mapping: Optional[dict] = None):
+     default_role_mapping = {
+@@ -146,6 +156,10 @@
+         elif content is None:
+             message["content"] = ""
+ 
++        # The server returns reasoning as `reasoning`; templates read `reasoning_content`.
++        if isinstance(message.get("reasoning"), str) and "reasoning_content" not in message:
++            message["reasoning_content"] = message["reasoning"]
++
+         if tool_calls := message.get("tool_calls"):
+             for tool_call in tool_calls:
+                 if func := tool_call.get("function"):
+@@ -1519,14 +1533,16 @@
+                 tool_calls.append(tool_text)
+                 made_tool_call = True
+ 
+-            if finish_reason == "stop" and made_tool_call:
++            formatted_calls = tool_formatter(tool_calls)
++            text += tool_formatter.take_failed_text()
++            if finish_reason == "stop" and made_tool_call and tool_formatter.emitted:
+                 finish_reason = "tool_calls"
+ 
+             if self.stream:
+                 resp = self.generate_response(
+                     text,
+                     finish_reason,
+-                    tool_calls=tool_formatter(tool_calls),
++                    tool_calls=formatted_calls,
+                     reasoning_text=reasoning_text,
+                 )
+                 self.wfile.write(f"data: {json.dumps(resp)}\n\n".encode())
+@@ -1555,7 +1571,7 @@
+                     top_tokens=top_tokens,
+                     tokens=tokens,
+                     reasoning_text=reasoning_text,
+-                    tool_calls=tool_formatter(tool_calls),
++                    tool_calls=formatted_calls,
+                 )
+                 if logging.getLogger().isEnabledFor(logging.DEBUG):
+                     response_debug = json.dumps(resp, indent="\t")
+diff -ru a/mlx_lm/tool_parsers/json_tools.py b/mlx_lm/tool_parsers/json_tools.py
+--- a/mlx_lm/tool_parsers/json_tools.py	2026-10-09 12:40:57.340338175 +0000
++++ b/mlx_lm/tool_parsers/json_tools.py	2026-10-09 12:40:57.389230742 +0000
+@@ -8,4 +8,6 @@
+ 
+ 
+ def parse_tool_call(text, tools=None):
+-    return json.loads(text.strip())
++    # Models often emit literal newlines/tabs inside code-carrying string arguments.
++    # Accept them here; the server re-serializes arguments with json.dumps.
++    return json.loads(text.strip(), strict=False)

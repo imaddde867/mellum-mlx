@@ -1,6 +1,6 @@
 # Measurement notes
 
-Initial measurements: 2026-10-09. RTX 5090, 32 GB VRAM, driver 595.91.07. MLX 0.32.3 / MLX-LM 0.32.0. These are CUDA research-preview results.
+Initial measurements: 2026-10-09. RTX 5090, 32 GB VRAM, driver 595.91.07. MLX 0.32.3 / MLX-LM 0.32.0. CUDA and Metal results are reported separately below.
 
 ## Artifact checks
 
@@ -25,7 +25,7 @@ Twelve authored snippets, 547 scored tokens, raw text tokenization, teacher forc
 | Existing MXFP4 / MLX CUDA | 1.290664 | +0.081957 | 92.14% |
 | BF16 / Transformers CPU | 1.212631 | +0.003924 | 97.26% |
 
-The independent reference uses PyTorch 2.14.1+cpu, Transformers 5.19.0, BF16, eager attention and eight CPU threads. CPU versus CUDA arithmetic differs. This probe does not establish complete architecture parity; its observed disagreement is reported, not declared resolved. Sliding-window boundary and long-context comparisons remain pending.
+The independent reference uses PyTorch 2.14.1+cpu, Transformers 5.19.0, BF16, eager attention and eight CPU threads. CPU versus CUDA arithmetic differs. This probe does not establish complete architecture parity; its observed disagreement is reported, not declared resolved. An initial synthetic cache-boundary diagnostic is reported below; independent long-context architecture parity remains pending.
 
 ## Protocol fixtures
 
@@ -33,7 +33,7 @@ The installed parser/serializer preserved single/multiple calls, escaped JSON ar
 
 ## Pending
 
-Long-context numerical audit, executable coding benchmark, broader live HTTP scenarios, resolution of the intermittent DWQ discrepancy, meaningful held-out DWQ calibration and Apple Silicon validation. No superiority or Mac performance claims are supported at this stage.
+Independent long-context numerical audit, executable coding benchmark, broader live HTTP scenarios, resolution of the intermittent DWQ discrepancy, meaningful held-out DWQ calibration and native-conversion Apple Silicon validation. Comparator-only Mac measurements do not support claims about our native conversions or superior coding quality.
 
 ## DWQ compatibility pilot
 
@@ -58,3 +58,27 @@ Warmup excluded; three greedy trials per cell, 256 generated tokens, prefill ste
 ## Live HTTP smoke test
 
 A temporary loopback-only MLX-LM server generated a valid `add(2, 3)` tool call, preserved its ID and JSON arguments, consumed a synthetic tool result, and answered exactly `5`. Both streaming and non-streaming modes passed with the upstream thinking template, greedy sampling and a 1,024-token output budget. No generated tool/code was executed. This is one simple scenario per mode, not a general agent-reliability score. The server was stopped after the probe. Raw responses are in `results/cuda/http-probe.json`.
+
+## M4 Metal comparator measurements
+
+14-inch MacBook Pro, Apple M4 (10 CPU / 10 GPU cores), 16 GB unified memory, macOS 27.0.1, AC power. Lid closed; the user reports Amphetamine keep-awake. MLX 0.32.3 / MLX-LM 0.32.0. The pinned external MXFP4 artifact passed all checksums in its public receipt. Our native 4-bit conversion is still transferring and is not measured here.
+
+Same synthetic throughput protocol as CUDA: warmup plus three measured greedy trials, 256 output tokens, prefill step 512. All trials reached the output budget. A separate artifact transfer ran concurrently; these are preliminary measurements rather than isolated performance rankings.
+
+| Comparator | Context | Mean prompt tok/s | Mean decode tok/s | Mean TTFT (s) | Max MLX GB |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| MXFP4 | 1K | 663.9 | 67.2 | 1.543 | 6.96 |
+| MXFP4 | 4K | 623.7 | 64.3 | 6.567 | 6.99 |
+| MXFP4 | 16K | 521.2 | 57.6 | 31.436 | 7.19 |
+
+The 547-token numerical smoke probe had mean NLL 1.279368. Against the *same MXFP4 artifact on CUDA*, Metal NLL differed by -0.011295 and top-1 predictions agreed on 96.89% of positions. The report's BF16 baseline is the CUDA reference, not a Mac BF16 run; its delta is not a within-Metal quantization-quality estimate. Runtime disagreement remains under investigation. The simple addition tool round trip passed in both live HTTP modes on Metal.
+
+Aggregate system snapshots before/after the initial 1K run are in `results/mac/system-snapshots.json`. Swap was already present and increased between those snapshots; concurrent downloads and other applications prevent attributing that change to inference alone. These snapshots do not measure whole-system peak memory or establish swap-free operation.
+
+## CUDA cache-boundary diagnostic
+
+Native 4-bit, repeated authored fixture text, lengths 1,023 / 1,024 / 1,025 / 2,049, last eight output positions. Compared repeated uncached forwards, cached single-prefill forwards, and chunk sizes 256 / 512 followed by eight single-token forwards. All 16 comparisons were finite and agreed on top-1 predictions at the selected positions. These highly predictable repeated snippets and eight-position samples are weak evidence; they do not establish complete cache correctness.
+
+Raw logits differed even on repeated uncached forwards. The cause is unresolved; do not interpret cached-versus-uncached differences as an isolated cache defect or declare exact reproducibility. See `results/cuda/4bit-cache-probe.json`.
+
+The first diagnostic ran out of CUDA memory on its final uncached 2,049-token forward. A fresh process completed that forward at 18.71 GB MLX peak. Clearing allocator cache between contexts enabled the full diagnostic; before the final context, 6.84 GB was active and 12.77 GB was cached. The initial failure and retry are retained in `results/cuda/cache-first-run-failure.json`. This change controls the diagnostic's allocation retention; it is not an upstream model fix.

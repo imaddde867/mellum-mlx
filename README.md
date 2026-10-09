@@ -2,7 +2,7 @@
 
 Reproducible Mellum2.1 quantization experiments and validation for local coding-agent use.
 
-**Research preview.** Native 4-bit and 6-bit conversions have been built and structurally validated on an RTX 5090. Short numerical probes, throughput measurements through 16K context, protocol fixtures and a simple live HTTP tool round trip are available under [results](results). Apple Silicon validation, executable coding benchmarks, long-context parity and representative agent integration remain pending. No claim of superior coding quality, Mac performance or production readiness is made.
+**Research preview.** Native 4-bit and 6-bit conversions have been built and structurally validated on an RTX 5090. Short numerical probes, throughput measurements through 16K context, protocol fixtures and a simple live HTTP tool round trip are available under [results](results). The pinned external MXFP4 comparator has also been measured on a 16 GB M4 Mac through 16K context and passed the simple live HTTP round trip. Mac validation of our native conversions, executable coding benchmarks, long-context parity and representative agent integration remain pending. No claim of superior coding quality or production readiness is made.
 
 The contribution we aim to deliver is a measured quality–size–speed comparison, correct tool integration, and reproducible artifacts. Quantization methods and the model architecture come from upstream projects.
 
@@ -40,9 +40,11 @@ python scripts/protocol_probe.py artifacts/mellum2.1-affine-4bit-g64   --output 
 python scripts/benchmark.py artifacts/mellum2.1-affine-4bit-g64   --context 1024 --max-tokens 256 --trials 3 --output results/local/benchmark-1k.json
 python scripts/http_probe.py artifacts/mellum2.1-affine-4bit-g64 \
   --output results/local/http.json
+python scripts/cache_probe.py artifacts/mellum2.1-affine-4bit-g64 \
+  --output results/local/cache.json
 ```
 
-`score.py` is an authored short-snippet regression probe, **not** a representative coding benchmark. It never executes model-generated code. `protocol_probe.py` checks fixed parser/serializer fixtures; passing it does not establish live HTTP or coding-agent reliability. `benchmark.py` uses a synthetic repeated-code prefix and greedy generation; reported MLX memory excludes OS memory and swap. CUDA and Metal results must remain separate.
+`score.py` is an authored short-snippet regression probe, **not** a representative coding benchmark. It never executes model-generated code. `protocol_probe.py` checks fixed parser/serializer fixtures; passing it does not establish live HTTP or coding-agent reliability. `benchmark.py` uses a synthetic repeated-code prefix and greedy generation; reported MLX memory excludes OS memory and swap. CUDA and Metal results must remain separate. `cache_probe.py` compares the last eight positions of synthetic sequences around the sliding-window boundary; its differences are diagnostics, not a numerical parity pass.
 
 For an independent short-context reference, create a separate environment, install CPU `torch==2.14.1` from the [official CPU wheel index](https://download.pytorch.org/whl/cpu), plus `transformers==5.19.0`, `numpy==2.5.3`, and `safetensors==0.8.0`, then run:
 

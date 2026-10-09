@@ -97,3 +97,20 @@ All four CUDA candidates completed the same 164 tasks under [the fixed protocol]
 For 6-bit versus MXFP4, 137 tasks passed both, nine passed only 6-bit, seven passed only MXFP4, and eleven passed neither. Exact two-sided McNemar p = 0.8036. This single run does not establish a quality advantage. Wilson 95% intervals are recorded in `summary.json` as descriptive task-sampling uncertainty; they do not account for benchmark selection, training overlap or runtime variability.
 
 Native 6-bit is the leading native release candidate pending M4 validation. MXFP4 remains the better demonstrated quality/size balance. Native 4-bit has no demonstrated quality/size advantage and is not recommended as the default. These tasks do not establish repository-agent reliability, and CUDA greedy decoding is not bitwise deterministic.
+
+## Isolated M4 native 4-bit comparison
+
+The native 4-bit artifact passed every conversion checksum on the Mac, completed the short finite-logit fidelity probe, and passed the simple streaming/non-streaming HTTP addition round trip. The throughput comparison below ran sequentially with no artifact transfer active, on AC power, using the same warmup plus three measured trials and 256-token synthetic protocol. The earlier transfer-concurrent MXFP4 measurements remain preserved separately.
+
+| Candidate | Context | Mean prompt tok/s | Mean decode tok/s | Mean TTFT (s) | Max MLX GB |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Native 4-bit | 1K | 673.8 | 65.8 | 1.520 | 7.34 |
+| Native 4-bit | 4K | 632.1 | 63.3 | 6.480 | 7.37 |
+| Native 4-bit | 16K | 527.6 | 56.9 | 31.056 | 7.57 |
+| MXFP4 isolated repeat | 1K | 639.2 | 67.3 | 1.602 | 6.96 |
+| MXFP4 isolated repeat | 4K | 591.6 | 64.5 | 6.926 | 6.99 |
+| MXFP4 isolated repeat | 16K | 521.1 | 58.4 | 31.440 | 7.19 |
+
+Native 4-bit showed higher synthetic prompt throughput, but slightly lower decode throughput and higher MLX memory than MXFP4. This limited workload does not justify recommending native 4-bit as the default given its lower coding score and larger artifact.
+
+Periodic system counters are in `results/mac/native-comparison-system-snapshots.json`. Swap used increased from 181.75 MB to 282.81 MB across the initial fidelity stage, then remained at 282.81 MB in the sampled throughput/HTTP stages. All sampled memory-pressure values were normal (level 1). These are periodic observations, not continuous peaks; other applications and existing swap prevent causal attribution or a claim of swap-free operation. Native 6-bit transfer and validation are the next release gate.

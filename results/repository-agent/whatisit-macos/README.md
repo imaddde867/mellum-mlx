@@ -1,0 +1,11 @@
+# Contained repository-agent trials
+
+Repository: https://github.com/imaddde867/whatisit-macos at fbdcb10b289001baf2c0e444bb963e421262a4fd. Original checkout was not modified. All trials used native Mellum 6-bit on CUDA, greedy sampling, 8,192 tokens per response, fixed tests, allowlisted file tools, and an offline unprivileged read-only Docker test container. No arbitrary host shell tool was exposed.
+
+## Mutation-routing task: failed
+
+A fixed authored regression required inspection-only routing to reject mutation inflections while retaining ordinary inspection. The baseline failed. The whole-file tool trial produced malformed JSON; no patch was applied. Exact-edit retry exhausted its 12-turn budget with a syntax error. A separate 8-turn continuation also failed. A fresh 12-turn trial from the original source used plain-text file responses, correcting unnecessary adapter JSON quoting; it still failed the fixed tests. Every transcript and final test outcome is retained. No successful routing fix or general coding-agent reliability is claimed.
+
+Early exact-edit and continuation trials shared the same isolated file. Their archived final source is explicitly named source-after-shared.py; their individual raw edit arguments and test outcomes remain in the transcripts. Archive checksums are post-run evidence bindings, not execution-time seals.
+
+The separate retrieval-limit validation task succeeded: Mellum inspected the source, applied a two-line type check, and passed all 36 fixed repository/regression tests in the isolated container. Its original baseline failed. The generated patch, full transcript, harness and tests are under limit-validation/. This is a distinct, smaller task; it does not replace or hide the failed routing trials. The receipt field baseline_engine_sha256 refers to the retrieval source in this adapted harness; engine_changed means the allowed retrieval file changed. No original-checkout merge was performed. Reproduction requires an original tracked-files copy at the harness's specified work path, the supplied fixed regression file, the pinned model weights, and the pinned Docker image. Harnesses refuse overwriting transcript evidence; use a fresh copy and output paths.

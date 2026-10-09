@@ -114,3 +114,13 @@ The native 4-bit artifact passed every conversion checksum on the Mac, completed
 Native 4-bit showed higher synthetic prompt throughput, but slightly lower decode throughput and higher MLX memory than MXFP4. This limited workload does not justify recommending native 4-bit as the default given its lower coding score and larger artifact.
 
 Periodic system counters are in `results/mac/native-comparison-system-snapshots.json`. Swap used increased from 181.75 MB to 282.81 MB across the initial fidelity stage, then remained at 282.81 MB in the sampled throughput/HTTP stages. All sampled memory-pressure values were normal (level 1). These are periodic observations, not continuous peaks; other applications and existing swap prevent causal attribution or a claim of swap-free operation. Native 6-bit transfer and validation are the next release gate.
+
+## Contained repository-agent integration
+
+Native 6-bit, RTX 5090, the same greedy 8,192-token response budget, allowlisted tools, fixed regressions, and generated code executed only inside the pinned offline unprivileged Docker container. Repository: `imaddde867/whatisit-macos` at `fbdcb10b289001baf2c0e444bb963e421262a4fd`. The original checkout was not modified.
+
+The mutation-routing task failed its bounded trials: malformed whole-file tool JSON, unsuccessful exact edits, and reasoning/output-budget exhaustion. A fresh trial with corrected plain-text file responses still failed. All failed transcripts, tests and harnesses are preserved.
+
+A separate smaller retrieval-limit task succeeded. The baseline failed; Mellum read the source, added a two-line integer type check that rejects booleans/non-integer values before database access, and passed all 36 fixed repository/regression tests. The generated patch was independently reviewed. Its transcript, source snapshots, exact harness and test outputs are in `results/repository-agent/whatisit-macos/limit-validation/`.
+
+This demonstrates a contained tool/read/edit/test workflow on one task and exposes failures on another. It is not a repository-agent success rate, broad reliability proof or a Metal agent result. Adapter changes, retries and the separate continuation are documented; successful evidence does not replace failed attempts.

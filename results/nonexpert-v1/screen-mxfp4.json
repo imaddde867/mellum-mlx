@@ -1,0 +1,340 @@
+{
+  "model": "work/mxfp4",
+  "weights_sha256": {
+    "model.safetensors": "b6224c8ea3e32190acc1500ce513d39263be257c6c71a10a31e832c045d2cb9a"
+  },
+  "weight_bytes": 6457111871,
+  "config_sha256": "6f9081a06afc57a1263850e52a6dcf5d1ea519f3e5a53b0f520670c057682581",
+  "script_sha256": "edea948fec9db44a50d59d4a67b044abc3809a4fb7e21fa55eb138161a2d4217",
+  "git_revision": "44f3c720743098d51c2a25343f1b9855ff871f9e",
+  "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.39",
+  "packages": {
+    "mlx": "0.32.3",
+    "mlx-lm": "0.32.0",
+    "transformers": "5.19.0",
+    "safetensors": "0.8.0"
+  },
+  "label": "mxfp4",
+  "protocol": {
+    "sha256": "1d343046c2b48f70fde42e2f7cf652ebca7ebff5a380e6a4f3d4235bcb5a9279",
+    "tasks": 24,
+    "authorship": "Authored and frozen before any sprint candidate generation. No HumanEval or repository-task questions or observed outputs used. Synthetic development screen; possible training overlap unknown.",
+    "max_tokens": 8192,
+    "temperature": 0,
+    "seed": 0,
+    "prefill_step_size": 512,
+    "selection": "At most one promotion: material task-level quality or total generation-time improvement vs MXFP4, near 7.5 decimal GB. A 1-2 task difference alone is insufficient; report paired differences and runtime variability. No promotion if evidence is weak.",
+    "fixture_validation": "Syntax compiled; escaped-backslash input corrected before any sprint generation. No model outputs inspected."
+  },
+  "fixture_manifest_sha256": "1b94c91dac51cae7ca61fd3cad62e06836b49d8197609cfe1b826f77360d3be8",
+  "sandbox_image": "ganler/evalplus@sha256:26b118098bef281fe8dfe999bf05f1d5b45374b4e6c00161ec0f30592aef4740",
+  "http_probe_sha256": "286aba5cd640f1f2e1e8e06d95f1691409ab0366cd89dfd8993dc9109f907200",
+  "server_sha256": "57392576de114af80ede723976b9dd156dc234f856b9943b8b44b8b78bc27f79",
+  "status": "complete",
+  "rows": [
+    {
+      "id": "NE/00",
+      "elapsed_s": 9.88171691900061,
+      "completion_tokens": 1850,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def merge_ranges(ranges):\n    \"\"\"\n    Merge overlapping or touching half-open integer ranges.\n\n    Args:\n        ranges: An iterable of iterables, each containing two integers (start, end)\n                representing a half-open range [start, end).\n\n    Returns:\n        A list of tuples, each representing a merged range, sorted by start value.\n    \"\"\"\n    # Filter out empty ranges and convert to list of tuples\n    filtered = []\n    for r in ranges:\n        # Ensure we have at least two elements and they are integers\n        if hasattr(r, \"__iter__\") and len(r) >= 2:\n            start, end = r[0], r[1]\n            if start < end:  # non-empty\n                filtered.append((start, end))\n        # If the range is not a pair, silently skip (could also raise ValueError)\n\n    # Sort by start value\n    filtered.sort(key=lambda x: x[0])\n\n    merged = []\n    for start, end in filtered:\n        if not merged:\n            merged.append([start, end])\n        else:\n            last_start, last_end = merged[-1]\n            if start <= last_end:  # overlapping or touching\n                merged[-1][1] = max(last_end, end)\n            else:\n                merged.append([start, end])\n\n    # Convert inner lists to tuples to avoid mutating the internal structure\n    return [tuple(interval) for interval in merged]",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/01",
+      "elapsed_s": 14.388360819997615,
+      "completion_tokens": 3267,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "import heapq\nfrom typing import List, Tuple, Set, Dict\ndef topological(edges: List[Tuple[str, str]], nodes: List[str]) -> List[str]:\n    # Build set of all nodes\n    node_set = set(nodes)\n    # Initialize adjacency and indegree\n    adj: Dict[str, List[str]] = {node: [] for node in node_set}\n    indegree: Dict[str, int] = {node: 0 for node in node_set}\n    \n    seen_edges: Set[Tuple[str, str]] = set()\n    \n    for u, v in edges:\n        # Add nodes if not present\n        if u not in node_set:\n            node_set.add(u)\n            adj[u] = []\n            indegree[u] = 0\n        if v not in node_set:\n            node_set.add(v)\n            adj[v] = []\n            indegree[v] = 0\n        # Skip duplicate edges\n        if (u, v) in seen_edges:\n            continue\n        seen_edges.add((u, v))\n        adj[u].append(v)\n        indegree[v] += 1\n    \n    # Initialize heap with nodes having indegree 0\n    heap = [node for node in node_set if indegree[node] == 0]\n    heapq.heapify(heap)\n    \n    result: List[str] = []\n    while heap:\n        node = heapq.heappop(heap)\n        result.append(node)\n        for neighbor in adj.get(node, []):\n            indegree[neighbor] -= 1\n            if indegree[neighbor] == 0:\n                heapq.heappush(heap, neighbor)\n    \n    if len(result) != len(node_set):\n        raise ValueError(\"Cycle detected in the graph\")\n    \n    return result",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/02",
+      "elapsed_s": 25.91738953901222,
+      "completion_tokens": 5899,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "import sys\ndef decode_runs(text):\n    \"\"\"Decode runs of decimal count followed by lowercase letter.\"\"\"\n    if not isinstance(text, str):\n        raise TypeError(\"Input must be a string\")\n    result = []\n    i = 0\n    n = len(text)\n    while i < n:\n        # Parse the count (digits)\n        if not text[i].isdigit():\n            raise ValueError(\"Missing count\")\n        start = i\n        while i < n and text[i].isdigit():\n            i += 1\n        count_str = text[start:i]\n        if not count_str:\n            raise ValueError(\"Missing count\")\n        count = int(count_str)\n        if count == 0:\n            raise ValueError(\"Zero count\")\n        # Parse the letter\n        if i >= n or not ('a' <= text[i] <= 'z'):\n            raise ValueError(\"Missing or invalid letter\")\n        letter = text[i]\n        i += 1\n        # Append repeated letter\n        result.append(letter * count)\n    return ''.join(result)",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/03",
+      "elapsed_s": 9.62551934599469,
+      "completion_tokens": 2186,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "from collections import OrderedDict\ndef lru(capacity: int, operations: list) -> list:\n    \"\"\"\n    Simulates an LRU cache.\n    :param capacity: Maximum number of items the cache can hold (zero means empty).\n    :param operations: List of tuples, each either (\"put\", key, value) or (\"get\", key).\n    :return: List of results from \"get\" operations; -1 for misses.\n    \"\"\"\n    cache = {}                # key -> value\n    order = OrderedDict()     # key -> None, maintains access order\n    results = []\n\n    if capacity == 0:\n        # Cache cannot store anything; all gets return -1.\n        for op in operations:\n            if op[0] == \"get\":\n                results.append(-1)\n            # put operations are ignored\n        return results\n\n    for op in operations:\n        if op[0] == \"put\":\n            _, key, value = op\n            if key in cache:\n                # Key already present: update and refresh recency.\n                del cache[key]\n                order.move_to_end(key)\n            elif len(cache) >= capacity:\n                # Evict least recently used item.\n                oldest_key, _ = order.popitem(last=False)\n                del cache[oldest_key]\n            cache[key] = value\n            order[key] = None\n            order.move_to_end(key)\n        else:  # \"get\"\n            _, key = op\n            if key in cache:\n                order.move_to_end(key)  # refresh recency\n                results.append(cache[key])\n            else:\n                results.append(-1)\n\n    return results",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/04",
+      "elapsed_s": 7.12108046800131,
+      "completion_tokens": 1604,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def flatten(value):\n    \"\"\"\n    Recursively flatten lists and tuples into a new list.\n    All other values (including strings and dictionaries) are treated as atomic.\n    \"\"\"\n    if isinstance(value, (list, tuple)):\n        result = []\n        for item in value:\n            result.extend(flatten(item))\n        return result\n    else:\n        return [value]",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/05",
+      "elapsed_s": 34.55114150600275,
+      "completion_tokens": 7897,
+      "truncated": false,
+      "empty": false,
+      "passed": false,
+      "execution": {
+        "sanitized": "import sys\ndef path_normalize(path: str) -> str:\n    \"\"\"Normalize a POSIX path according to the specified rules.\"\"\"\n    absolute = path.startswith('/')\n    parts = path.split('/')\n    result = []\n\n    for part in parts:\n        if part == '' or part == '.':\n            continue\n        elif part == '..':\n            if absolute:\n                # Cannot go above absolute root\n                if result:\n                    result.pop()\n                # else ignore\n            else:\n                # Relative path: resolve if possible, otherwise keep as '..'\n                if result:\n                    result.pop()\n                else:\n                    result.append('..')\n        else:\n            result.append(part)\n\n    if absolute:\n        if not result:\n            return '/'\n        else:\n            return '/' + '/'.join(result)\n    else:\n        if not result:\n            return '.'\n        else:\n            return '/'.join(result)",
+        "passed": false,
+        "error": "AssertionError: "
+      }
+    },
+    {
+      "id": "NE/06",
+      "elapsed_s": 5.594610494008521,
+      "completion_tokens": 1268,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "import heapq\nfrom typing import Dict, List, Tuple, Optional, Any\ndef shortest(graph: Dict[Any, List[Tuple[Any, float]]],\n             start: Any,\n             end: Any) -> Optional[float]:\n    \"\"\"Return the shortest distance from start to end in a weighted graph.\n    If start == end, distance is 0. If end is unreachable, return None.\n    \"\"\"\n    if start == end:\n        return 0\n\n    # Initialize distances\n    dist: Dict[Any, float] = {}\n    dist[start] = 0\n\n    # Priority queue: (distance, node)\n    heap: List[Tuple[float, Any]] = [(0, start)]\n\n    while heap:\n        d, u = heapq.heappop(heap)\n        if d != dist.get(u, float('inf')):\n            continue  # outdated entry\n        if u == end:\n            break\n        # Get neighbors; if u not in graph, treat as empty list\n        neighbors = graph.get(u, [])\n        for v, w in neighbors:\n            if w < 0:\n                raise ValueError(\"Edge weights must be nonnegative\")\n            new_dist = d + w\n            if new_dist < dist.get(v, float('inf')):\n                dist[v] = new_dist\n                heapq.heappush(heap, (new_dist, v))\n            # Ensure v is in dist dict\n            if v not in dist:\n                dist[v] = float('inf')\n\n    end_dist = dist.get(end, float('inf'))\n    return None if end_dist == float('inf') else end_dist",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/07",
+      "elapsed_s": 7.321293055996648,
+      "completion_tokens": 1663,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "from collections import deque\ndef window_max(values, k):\n    \"\"\"\n    Returns a list of maximum values of each contiguous window of size k.\n    If k <= 0, raises ValueError.\n    If k > len(values), returns empty list.\n    Time complexity: O(n)\n    \"\"\"\n    if k <= 0:\n        raise ValueError(\"k must be a positive integer\")\n    n = len(values)\n    if k > n:\n        return []\n    dq = deque()  # stores indices; values[dq] are decreasing\n    result = []\n    for i, val in enumerate(values):\n        # remove indices that are out of the current window\n        while dq and dq[0] <= i - k:\n            dq.popleft()\n        # remove indices whose corresponding values are less than current val\n        while dq and values[dq[-1]] <= val:\n            dq.pop()\n        dq.append(i)\n        # once the first window is complete, record the max\n        if i >= k - 1:\n            result.append(values[dq[0]])\n    return result",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/08",
+      "elapsed_s": 14.42055033199722,
+      "completion_tokens": 3295,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def split_escaped(text):\n    \"\"\"\n    Split the input string on unescaped commas.\n    A backslash escapes the next character; the backslash is removed.\n    Empty fields are preserved.\n    A trailing backslash raises ValueError.\n    \"\"\"\n    fields = []\n    current = []\n    i = 0\n    n = len(text)\n    escaped = False\n\n    while i < n:\n        ch = text[i]\n        if escaped:\n            # The previous character was a backslash; this character is literal.\n            current.append(ch)\n            escaped = False\n        else:\n            if ch == '\\\\':\n                escaped = True\n            elif ch == ',':\n                # Unescaped comma: split the current field.\n                fields.append(''.join(current))\n                current = []\n            else:\n                current.append(ch)\n        i += 1\n\n    if escaped:\n        # There was a backslash at the end of the string.\n        raise ValueError(\"Trailing backslash\")\n\n    fields.append(''.join(current))\n    return fields",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/09",
+      "elapsed_s": 15.696100129003753,
+      "completion_tokens": 3611,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "import copy\ndef deep_merge(left, right):\n    \"\"\"\n    Recursively merge two dictionaries.\n    - If a key exists in both and both values are dictionaries, merge them recursively.\n    - Otherwise, the value from `right` replaces the value from `left`.\n    - The function does not mutate the input dictionaries; it returns a new dictionary\n      with independent copies of nested mutable values.\n    \"\"\"\n    if isinstance(left, dict) and isinstance(right, dict):\n        # Start with a deep copy of left to avoid mutating the original.\n        result = copy.deepcopy(left)\n        # Iterate over items in right, updating the result.\n        for key, value in right.items():\n            if key in result and isinstance(result[key], dict) and isinstance(value, dict):\n                # Both are dicts: merge recursively.\n                result[key] = deep_merge(result[key], value)\n            else:\n                # Right value takes precedence; store a deep copy to ensure independence.\n                result[key] = copy.deepcopy(value)\n        return result\n    else:\n        # If either side is not a dict, we cannot merge; return a deep copy of right\n        # (or left if right is missing) to avoid accidental mutation.\n        return copy.deepcopy(right) if right is not None else copy.deepcopy(left)",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/10",
+      "elapsed_s": 10.496500671986723,
+      "completion_tokens": 2388,
+      "truncated": false,
+      "empty": false,
+      "passed": false,
+      "execution": {
+        "sanitized": "from collections import defaultdict, deque\ndef rate_limit(events, limit, window):\n    \"\"\"\n    events: list of (timestamp, key) tuples, sorted by timestamp.\n    limit: maximum number of accepted events per key in the sliding window.\n    window: size of the sliding window (time).\n    Returns a list of booleans, True if event accepted, False otherwise.\n    \"\"\"\n    if limit == 0:\n        return [False] * len(events)\n\n    # per key store deque of timestamps of accepted events\n    accepted = defaultdict(deque)\n    result = []\n\n    for timestamp, key in events:\n        dq = accepted[key]\n        # remove timestamps that are outside the window\n        while dq and dq[0] < timestamp - window:\n            dq.popleft()\n        if len(dq) < limit:\n            dq.append(timestamp)\n            result.append(True)\n        else:\n            result.append(False)\n\n    return result",
+        "passed": false,
+        "error": "AssertionError: "
+      }
+    },
+    {
+      "id": "NE/11",
+      "elapsed_s": 16.811271562997717,
+      "completion_tokens": 3890,
+      "truncated": false,
+      "empty": false,
+      "passed": false,
+      "execution": {
+        "sanitized": "def json_pointer(value, pointer):\n    \"\"\"\n    Resolve a JSON Pointer (RFC6901) within a JSON value (dict or list).\n\n    Args:\n        value: The JSON value (dict, list, or any other type).\n        pointer: A JSON Pointer string.\n\n    Returns:\n        The value pointed to by the pointer.\n\n    Raises:\n        ValueError: If the pointer is malformed, contains invalid escapes,\n                    references a missing path, or uses a non\u2011canonical list index.\n    \"\"\"\n    # Empty pointer returns the root value.\n    if pointer == \"\":\n        return value\n\n    # Step 1: Decode '~1' -> '/' and '~0' -> '~' in that order.\n    decoded_parts = []\n    i = 0\n    while i < len(pointer):\n        if pointer[i] == \"~\":\n            if i + 1 >= len(pointer):\n                raise ValueError(\"Malformed escape in pointer\")\n            nxt = pointer[i + 1]\n            if nxt == \"0\":\n                decoded_parts.append(\"~\")\n                i += 2\n            elif nxt == \"1\":\n                decoded_parts.append(\"/\")\n                i += 2\n            else:\n                raise ValueError(\"Malformed escape in pointer\")\n        else:\n            decoded_parts.append(pointer[i])\n            i += 1\n    decoded_pointer = \"\".join(decoded_parts)\n\n    # Step 2: Split into tokens, handling leading slash.\n    if decoded_pointer.startswith(\"/\"):\n        tokens = decoded_pointer.split(\"/\")[1:]\n    else:\n        tokens = decoded_pointer.split(\"/\")\n\n    current = value\n    for token in tokens:\n        if isinstance(current, dict):\n            if token in current:\n                current = current[token]\n            else:\n                raise ValueError(f\"Path token '{token}' not found in dictionary\")\n        elif isinstance(current, list):\n            # Validate canonical decimal representation.\n            if not token.isdigit():\n                raise ValueError(f\"List index '{token}' is not a decimal integer\")\n            if token[0] == \"0\" and len(token) > 1:\n                raise ValueError(f\"List index '{token}' has leading zero\")\n            idx = int(token)\n            if 0 <= idx < len(current):\n                current = current[idx]\n            else:\n                raise ValueError(f\"List index {idx} out of range\")\n        else:\n            raise ValueError(f\"Cannot resolve pointer token '{token}' into {type(current)}\")\n\n    return current",
+        "passed": false,
+        "error": "ValueError: Path token 'a' not found in dictionary"
+      }
+    },
+    {
+      "id": "NE/12",
+      "elapsed_s": 10.874205749001703,
+      "completion_tokens": 2519,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def stable_unique(values):\n    \"\"\"Return a list of values with duplicates removed, preserving first occurrence.\"\"\"\n    seen = set()\n    result = []\n    for v in values:\n        key = _to_hashable(v)\n        if key not in seen:\n            seen.add(key)\n            result.append(v)\n    return result\ndef _to_hashable(obj):\n    \"\"\"Convert a JSON-compatible object into a hashable tuple.\"\"\"\n    if isinstance(obj, dict):\n        # Sort items by key to ensure order-independent hashing\n        return tuple((k, _to_hashable(v)) for k, v in sorted(obj.items(), key=lambda kv: kv[0]))\n    elif isinstance(obj, list):\n        return tuple(_to_hashable(item) for item in obj)\n    else:\n        # Assume other JSON-compatible types are hashable\n        return obj",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/13",
+      "elapsed_s": 15.999547752988292,
+      "completion_tokens": 3664,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def parse_duration(text):\n    \"\"\"\n    Parse a string of concatenated integer segments with units h, m, s into seconds.\n    Units must appear in descending order, no repeats, no spaces, no signs.\n    Empty or malformed input raises ValueError. Zero amounts are allowed.\n    \"\"\"\n    if not text:\n        raise ValueError(\"Empty input\")\n\n    unit_values = {'h': 3600, 'm': 60, 's': 1}\n    priority = {'h': 3, 'm': 2, 's': 1}\n\n    total = 0\n    num_str = ''\n    last_priority = None\n    seen_units = set()\n\n    for ch in text:\n        if ch.isdigit():\n            num_str += ch\n        else:\n            # must be a unit\n            if not num_str:\n                raise ValueError(f\"Missing number before unit '{ch}'\")\n            num = int(num_str)\n            if ch not in unit_values:\n                raise ValueError(f\"Invalid character '{ch}'\")\n            if ch in seen_units:\n                raise ValueError(f\"Repeated unit '{ch}'\")\n            cur_priority = priority[ch]\n            if last_priority is not None and cur_priority > last_priority:\n                raise ValueError(f\"Units out of order: expected <= {last_priority}, got {ch}\")\n            total += num * unit_values[ch]\n            seen_units.add(ch)\n            last_priority = cur_priority\n            num_str = ''\n\n    # after processing all characters, any leftover digits?\n    if num_str:\n        raise ValueError(f\"Missing unit after number '{num_str}'\")\n\n    return total",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/14",
+      "elapsed_s": 16.34093299000233,
+      "completion_tokens": 3759,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def apply_patch(text, edits):\n    \"\"\"\n    Apply a list of edits to the original text.\n\n    Args:\n        text (str): The original text.\n        edits (iterable): An iterable of edits, each edit is a tuple\n                          (start, end, replacement). start and end are\n                          integer offsets in the original text, and replacement\n                          is a string.\n\n    Returns:\n        str: The patched text.\n\n    Raises:\n        ValueError: If edits are invalid (out of range, reversed offsets,\n                    overlapping, duplicate start offsets).\n    \"\"\"\n    # Convert edits to list for sorting and checking\n    edits = list(edits)\n\n    # Validate each edit's basic structure\n    for start, end, repl in edits:\n        if not isinstance(start, int) or not isinstance(end, int):\n            raise ValueError(\"Start and end offsets must be integers\")\n        if start < 0 or end < start or end > len(text):\n            raise ValueError(f\"Invalid range ({start}, {end}) for text length {len(text)}\")\n        if not isinstance(repl, str):\n            raise ValueError(\"Replacement must be a string\")\n\n    # Sort edits by start offset\n    edits.sort(key=lambda e: e[0])\n\n    # Check for duplicate start offsets and overlapping ranges\n    prev_start = None\n    prev_end = None\n    for start, end, _ in edits:\n        if prev_start is not None:\n            if start == prev_start:\n                raise ValueError(f\"Duplicate start offset: {start}\")\n            if start < prev_end:\n                raise ValueError(f\"Overlapping edits: ({start}, {end}) overlaps \"\n                                 f\"({prev_start}, {prev_end})\")\n        prev_start = start\n        prev_end = end\n\n    # Build the patched text\n    result_parts = []\n    last_pos = 0\n    for start, end, repl in edits:\n        # Append the untouched text before this edit\n        result_parts.append(text[last_pos:start])\n        # Append the replacement\n        result_parts.append(repl)\n        # Update the position to the end of this edit\n        last_pos = end\n    # Append the remaining text after the last edit\n    result_parts.append(text[last_pos:])\n\n    return ''.join(result_parts)",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/15",
+      "elapsed_s": 13.22919107299822,
+      "completion_tokens": 3014,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def paginate(items, after, limit):\n    \"\"\"\n    Paginate a list of items with integer ids.\n\n    Args:\n        items: List of dictionaries, each with an 'id' key (int).\n        after: Optional integer id. Only items with id > after are included.\n               If None, all items are considered.\n        limit: Positive integer, maximum number of items to return.\n\n    Returns:\n        A tuple (page, next_cursor):\n            page: List of items (up to limit) sorted by id.\n            next_cursor: The id of the last item in the page if more items remain,\n                         otherwise None.\n    \"\"\"\n    if limit <= 0:\n        raise ValueError(\"limit must be a positive integer\")\n\n    # Sort items by id\n    sorted_items = sorted(items, key=lambda x: x['id'])\n\n    # Filter items with id > after\n    if after is None:\n        filtered = sorted_items\n    else:\n        filtered = [item for item in sorted_items if item['id'] > after]\n\n    # Take the first 'limit' items\n    page = filtered[:limit]\n\n    # Determine next cursor\n    if len(filtered) > limit:\n        next_cursor = page[-1]['id']\n    else:\n        next_cursor = None\n\n    return page, next_cursor",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/16",
+      "elapsed_s": 26.34257409699785,
+      "completion_tokens": 6090,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def expression(text):\n    # Tokenize the input string into a list of tokens.\n    tokens = []\n    i = 0\n    n = len(text)\n    while i < n:\n        c = text[i]\n        if c.isspace():\n            i += 1\n            continue\n        if c.isdigit():\n            start = i\n            while i < n and text[i].isdigit():\n                i += 1\n            num = int(text[start:i])\n            tokens.append(('NUMBER', num))\n        elif c == '+':\n            tokens.append(('PLUS', '+'))\n            i += 1\n        elif c == '-':\n            tokens.append(('MINUS', '-'))\n            i += 1\n        elif c == '*':\n            tokens.append(('MULTIPLY', '*'))\n            i += 1\n        elif c == '(':\n            tokens.append(('LPAREN', '('))\n            i += 1\n        elif c == ')':\n            tokens.append(('RPAREN', ')'))\n            i += 1\n        else:\n            raise ValueError(f\"Invalid character: {c}\")\n    tokens.append(('EOF', None))\n\n    # Recursive descent parser.\n    class Parser:\n        def __init__(self, tokens):\n            self.tokens = tokens\n            self.pos = 0\n\n        def peek(self):\n            if self.pos < len(self.tokens):\n                return self.tokens[self.pos]\n            return ('EOF', None)\n\n        def consume(self, expected_type=None):\n            if self.pos >= len(self.tokens):\n                raise ValueError(\"Unexpected end of input\")\n            token = self.tokens[self.pos]\n            if expected_type is not None and token[0] != expected_type:\n                raise ValueError(f\"Expected {expected_type}, got {token[0]}\")\n            self.pos += 1\n            return token\n\n        def parse_expression(self):\n            left = self.parse_term()\n            while True:\n                token = self.peek()\n                if token[0] == 'PLUS':\n                    self.consume('PLUS')\n                    right = self.parse_term()\n                    left += right\n                elif token[0] == 'MINUS':\n                    self.consume('MINUS')\n                    right = self.parse_term()\n                    left -= right\n                else:\n                    break\n            return left\n\n        def parse_term(self):\n            left = self.parse_factor()\n            while True:\n                token = self.peek()\n                if token[0] == 'MULTIPLY':\n                    self.consume('MULTIPLY')\n                    right = self.parse_factor()\n                    left *= right\n                else:\n                    break\n            return left\n\n        def parse_factor(self):\n            token = self.peek()\n            if token[0] == 'NUMBER':\n                self.consume('NUMBER')\n                return token[1]\n            elif token[0] == 'PLUS':\n                self.consume('PLUS')\n                return self.parse_factor()  # unary plus\n            elif token[0] == 'MINUS':\n                self.consume('MINUS')\n                return -self.parse_factor()  # unary minus\n            elif token[0] == 'LPAREN':\n                self.consume('LPAREN')\n                value = self.parse_expression()\n                if self.peek()[0] != 'RPAREN':\n                    raise ValueError(\"Missing closing parenthesis\")\n                self.consume('RPAREN')\n                return value\n            else:\n                raise ValueError(f\"Unexpected token: {token}\")\n\n        def parse(self):\n            result = self.parse_expression()\n            if self.peek()[0] != 'EOF':\n                raise ValueError(\"Unexpected tokens after expression\")\n            return result\n\n    parser = Parser(tokens)\n    return parser.parse()",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/17",
+      "elapsed_s": 12.353391602999181,
+      "completion_tokens": 2820,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "from typing import List\nfrom collections import defaultdict\ndef components(n: int, edges: List[List[int]]) -> List[List[int]]:\n    \"\"\"\n    Returns the connected components of an undirected graph with n nodes (0-indexed)\n    and the given edges. Each component is sorted, and the list of components is\n    sorted by their smallest node. Isolated nodes are included as singleton components.\n    \"\"\"\n    parent = list(range(n))\n    rank = [0] * n\n\n    def find(x: int) -> int:\n        # Path compression\n        while parent[x] != x:\n            parent[x] = parent[parent[x]]\n            x = parent[x]\n        return x\n\n    def union(x: int, y: int) -> None:\n        rx, ry = find(x), find(y)\n        if rx == ry:\n            return\n        if rank[rx] < rank[ry]:\n            parent[rx] = ry\n        elif rank[rx] > rank[ry]:\n            parent[ry] = rx\n        else:\n            parent[ry] = rx\n            rank[rx] += 1\n\n    for u, v in edges:\n        union(u, v)\n\n    comps = defaultdict(list)\n    for i in range(n):\n        root = find(i)\n        comps[root].append(i)\n\n    result = [sorted(lst) for lst in comps.values()]\n    result.sort(key=lambda x: x[0])\n    return result",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/18",
+      "elapsed_s": 5.9641797299991595,
+      "completion_tokens": 1340,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def retry_delays(attempts, initial, cap):\n    \"\"\"\n    Return a list of delays for a given number of retry attempts.\n    Each delay is double the previous one, starting from `initial`,\n    but never exceeding `cap`.\n    \"\"\"\n    if attempts < 0 or initial < 0 or cap < 0:\n        raise ValueError(\"All arguments must be nonnegative\")\n    delays = []\n    for i in range(attempts):\n        delay = initial * (2 ** i)\n        if delay > cap:\n            delay = cap\n        delays.append(delay)\n    return delays",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/19",
+      "elapsed_s": 9.755696035994333,
+      "completion_tokens": 2237,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "import csv\nimport io\ndef csv_records(text):\n    \"\"\"\n    Parse CSV text with first row as headers into list of dicts.\n    Handles quoted commas and embedded newlines.\n    Returns empty list for empty input.\n    Raises ValueError for duplicate headers or mismatched field counts.\n    \"\"\"\n    if not text.strip():\n        return []\n    f = io.StringIO(text)\n    reader = csv.reader(f)\n    rows = list(reader)\n    if not rows:\n        return []\n    headers = rows[0]\n    # Check for duplicate headers\n    if len(headers) != len(set(headers)):\n        raise ValueError(\"Duplicate headers\")\n    # Process data rows\n    records = []\n    for i, row in enumerate(rows[1:], start=2):  # start=2 because rows[1] is first data row, index in CSV is 2\n        if len(row) != len(headers):\n            raise ValueError(f\"Row {i} has {len(row)} fields, expected {len(headers)}\")\n        records.append(dict(zip(headers, row)))\n    return records",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/20",
+      "elapsed_s": 11.407992911001202,
+      "completion_tokens": 2633,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def version_sort(versions):\n    \"\"\"\n    Sort version strings numerically, ignoring trailing zero segments.\n    \"\"\"\n    def key(version):\n        # Split into integer parts\n        parts = list(map(int, version.split('.')))\n        # Strip trailing zeros\n        while parts and parts[-1] == 0:\n            parts.pop()\n        return tuple(parts)\n\n    # Python's sort is stable, so ties keep original order\n    return sorted(versions, key=key)",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/21",
+      "elapsed_s": 7.715849871994578,
+      "completion_tokens": 1759,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def glob_match(pattern, text):\n    \"\"\"\n    Returns True if pattern matches the entire text, False otherwise.\n    Wildcards:\n        '?'  matches any single character.\n        '*'  matches any sequence of characters (including empty).\n    All other characters are literal.\n    \"\"\"\n    from functools import lru_cache\n\n    @lru_cache(maxsize=None)\n    def dp(p_idx, t_idx):\n        # If pattern is exhausted, text must also be exhausted\n        if p_idx == len(pattern):\n            return t_idx == len(text)\n\n        # If text is exhausted, remaining pattern must be all '*'\n        if t_idx == len(text):\n            return all(pattern[i] == '*' for i in range(p_idx, len(pattern)))\n\n        p_char = pattern[p_idx]\n\n        if p_char == '*':\n            # Match zero characters (skip '*') or match one more character\n            return dp(p_idx + 1, t_idx) or dp(p_idx, t_idx + 1)\n        elif p_char == '?' or p_char == text[t_idx]:\n            # Match one character and move forward\n            return dp(p_idx + 1, t_idx + 1)\n        else:\n            # Literal mismatch\n            return False\n\n    return dp(0, 0)",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/22",
+      "elapsed_s": 11.783515507006086,
+      "completion_tokens": 2687,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "import bisect\ndef schedule(jobs):\n    \"\"\"\n    Returns the maximum total profit from a set of non-overlapping jobs.\n    Jobs are tuples (start, end, profit) with start < end.\n    Touching endpoints are allowed (i.e., job A ending at time t and job B starting at t can both be selected).\n    \"\"\"\n    if not jobs:\n        return 0\n\n    # Sort jobs by their end time without mutating the original list\n    sorted_jobs = sorted(jobs, key=lambda x: x[1])\n    n = len(sorted_jobs)\n    ends = [job[1] for job in sorted_jobs]  # sorted end times\n\n    # dp[i] = max profit using first i jobs (sorted by end)\n    dp = [0] * (n + 1)\n\n    for i in range(1, n + 1):\n        start_i, end_i, profit_i = sorted_jobs[i - 1]\n        # Find how many jobs end <= start_i\n        j = bisect.bisect_right(ends, start_i)  # number of jobs with end <= start_i\n        # Profit either skip this job or take it plus best profit before it\n        dp[i] = max(dp[i - 1], profit_i + dp[j])\n\n    return dp[n]",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/23",
+      "elapsed_s": 9.638866598994355,
+      "completion_tokens": 2197,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def memo_cycle(definitions, name):\n    \"\"\"\n    Compute the value of `name` given a dictionary `definitions` where each key maps to either\n    an integer or a list of dependency names. Dependencies are summed. Shared dependencies\n    are counted each time they appear. Raises ValueError on cycles or missing dependencies.\n    \"\"\"\n    memo = {}\n    stack = set()\n\n    def resolve(n):\n        if n in memo:\n            return memo[n]\n        if n in stack:\n            raise ValueError(f\"Cycle detected involving {n}\")\n        stack.add(n)\n        try:\n            definition = definitions[n]\n        except KeyError:\n            raise ValueError(f\"Missing definition for {n}\")\n\n        if isinstance(definition, int):\n            value = definition\n        else:\n            # assume list of dependencies\n            value = 0\n            for dep in definition:\n                if dep not in definitions:\n                    raise ValueError(f\"Missing dependency {dep}\")\n                value += resolve(dep)\n        memo[n] = value\n        stack.remove(n)\n        return value\n\n    return resolve(name)",
+        "passed": true
+      }
+    }
+  ],
+  "passed": 21,
+  "generation_s": 323.23147876397707,
+  "failed_generation_s": 61.85891374098719,
+  "completion_tokens": 73537,
+  "truncated": 0,
+  "empty": 0,
+  "elapsed_with_startup_and_tests_s": 352.22638695899514,
+  "raw_sha256": "e1ab944ba548e178d25d16a2f58fc86fd3ad9f02a9c8f5d26083e879fb2331aa",
+  "memory": {
+    "mlx_peak_bytes": 7858550472,
+    "mlx_active_bytes_at_shutdown": 7342612240,
+    "scope": "MLX allocator peak, including load; excludes system/GPU driver memory"
+  }
+}

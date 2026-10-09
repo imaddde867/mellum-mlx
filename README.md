@@ -73,3 +73,5 @@ python scripts/dwq_pilot.py train
 ```
 
 This performs one update on separate authored pilot data. It tests compatibility, not quality improvement. An initial save/reload discrepancy was not reproduced on the instrumented repeat and remains unresolved; see the measurement notes. Do not publish the pilot as a tuned model.
+
+The first [mixed non-expert precision experiment](docs/NONEXPERT_EXPERIMENT.md) is complete: three BF16-origin recipes below 7.5 GB, integrity gates, and a frozen 24-task CUDA coding screen. Attention restoration improved the weak native 4-bit baseline, but no candidate earned promotion over pinned MXFP4. Candidate C passed 22/24 versus MXFP4 21/24, while taking 23.7% more generation time and using 9.9% more weight bytes. No candidate HumanEval+ or M4 validation was run.

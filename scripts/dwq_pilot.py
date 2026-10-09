@@ -2,7 +2,17 @@
 import argparse
 import hashlib
 import json
+import math
 from pathlib import Path
+
+
+def check_roundtrip(delta, repeated, changed):
+    if not math.isfinite(delta) or delta > 1e-4:
+        raise ValueError(f"Save/reload changed or nonfinite logits: {delta}")
+    if not math.isfinite(repeated) or repeated > 1e-4:
+        raise ValueError(f"Repeated forward changed or nonfinite logits: {repeated}")
+    if changed:
+        raise ValueError(f"Save/reload changed parameters: {changed}")
 
 
 def main():
@@ -16,6 +26,7 @@ def main():
     from mlx_lm.quant.dwq import compute_dwq_targets, dwq_quantize
     from mlx_lm.utils import load_tokenizer, save
 
+    mx.random.seed(123)
     source = Path("work/source")
     student = Path("artifacts/mellum2.1-affine-4bit-g64")
     cache = Path("work/dwq-pilot-targets")
@@ -65,21 +76,26 @@ def main():
     save(output, student, model, tokenizer, config, donate_model=False)
     reloaded, _ = load(str(output))
     actual = reloaded(prompt).astype(mx.float32)
+    if not mx.all(mx.isfinite(actual)).item():
+        raise ValueError("Nonfinite reloaded pilot outputs")
     delta = mx.max(mx.abs(expected - actual)).item()
     repeated = mx.max(mx.abs(expected - model(prompt).astype(mx.float32))).item()
     original_params = dict(tree_flatten(model.parameters()))
     loaded_params = dict(tree_flatten(reloaded.parameters()))
+    if set(original_params) != set(loaded_params):
+        raise ValueError("Save/reload changed parameter keys")
     changed = []
     for key, value in original_params.items():
         other = loaded_params[key]
         if value.dtype != other.dtype or value.shape != other.shape or not mx.all(value == other).item():
             changed.append({"key": key, "original_dtype": str(value.dtype), "loaded_dtype": str(other.dtype)})
     print(json.dumps({"reload_delta": delta, "repeat_delta": repeated, "changed_parameters": changed}), flush=True)
-    if delta > 1e-4:
-        raise ValueError(f"Save/reload changed pilot logits: {delta}")
+    check_roundtrip(delta, repeated, changed)
     report = {"status": "passed", "scope": "one training update on authored separate pilot data; not quality evidence",
               "cache_manifest": manifest, "routers_unchanged": True,
               "save_reload_max_logit_difference": delta,
+              "repeated_forward_max_logit_difference": repeated,
+              "parameters_identical": True,
               "mlx_peak_memory_gb": mx.get_peak_memory() / 1e9}
     result = Path("results/cuda/dwq-pilot.json")
     if result.exists():

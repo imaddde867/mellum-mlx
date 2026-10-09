@@ -123,6 +123,10 @@ def main():
                 server.wait()
             if receipt['status'] == 'running':
                 receipt['status'] = 'failed_generation'
+            samples.flush()
+            raw.flush()
+            receipt['samples_sha256'] = hashlib.sha256(args.output.read_bytes()).hexdigest()
+            receipt['raw_sha256'] = hashlib.sha256(raw_path.read_bytes()).hexdigest()
             receipt_path.write_text(json.dumps(receipt, indent=2) + '\n')
 
 

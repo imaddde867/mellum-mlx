@@ -12,7 +12,7 @@ Defined before the full generation runs on 2026-10-09.
 - Report individual outcomes, truncation, base and expanded pass@1, paired candidate differences and uncertainty. The benchmark may overlap training data; this is regression evidence, not proof of general coding-agent usefulness.
 - CUDA numerical nondeterminism remains under investigation. Fixed seed and greedy sampling do not establish bitwise reproducibility.
 
-The one-task smoke test validates the pipeline only and must never be reported as the full benchmark result. Full runs and evaluation remain pending until all 164 outputs and test outcomes are present.
+The one-task smoke test validates the pipeline only and must never be reported as the full benchmark result. All four initial runs now have 164 outputs and completed test outcomes; see RESULTS.md and results/coding/humaneval-plus/.
 
 Sources: [EvalPlus workflow](https://github.com/evalplus/evalplus), [commands and schemas](https://github.com/evalplus/evalplus/blob/master/docs/cli.md), [execution limits](https://github.com/evalplus/evalplus/blob/master/docs/execution.md).
 
@@ -43,3 +43,5 @@ Repeat with new output names for the other candidates. Generation starts a tempo
 Full generation and evaluation enforce both the exact ordered 164-task set and the pinned dataset SHA-256. Smaller pipeline checks require `--smoke` on both commands and are labeled smoke in their receipts. New generation receipts hash every safetensors weight shard. Runs started before this enforcement retain their original receipts; evaluation labels their weight binding as legacy, separate provenance only, rather than claiming generation-time checksum binding.
 
 Conversion manifests describe the conversion-time state and remain unchanged. `scripts/validate.py MODEL --receipt NEW_PATH` writes a separate validation receipt binding successful structural/tokenizer checks to the conversion manifest and artifact checksums; it refuses an existing receipt.
+
+Completed new generations bind both sample and raw-response files by SHA-256 in the generation receipt. Evaluation rejects changed files and verifies that sample solutions match retained raw responses. Older unbound receipts require `--legacy-receipt`; this permits explicit provenance-limited evaluation, never retroactive generation-time binding. Successful new evaluations also record checksums of their protocol, sanitized samples and results. The archived initial comparison preserves original receipts and adds clearly labeled post-run archive checksums.

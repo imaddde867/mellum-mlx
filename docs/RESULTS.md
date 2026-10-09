@@ -136,3 +136,11 @@ The supplied [length audit](../scripts/length_audit.py) reproduces paired outcom
 ## Native 6-bit M4 release gate
 
 The 16K synthetic run and streaming/non-streaming HTTP addition probe passed. Three measured trials excluding warmup gave 48.0 / 47.1 / 43.5 decode tok/s and 1.609 / 7.099 / 32.450 s TTFT at 1K / 4K / 16K. Peak MLX memory was 10.31 GB at 4K and 10.51 GB at 16K. Swap grew materially across the sequence (282.81 MB initially; about 1.9 GB during later stages), although it decreased from 1,947.31 MB to 1,883.31 MB within the sampled 16K stage. Editor-open status was not recorded. The release card retains **16 GB: not recommended**. Raw reports are under `results/mac/6bit-*.json`. This gate covers the measured workloads, not broad agent reliability or independent architecture parity.
+
+## Post-publication patched routing rerun
+
+**1 success out of 3** with seeds 0, 1 and 2. Separate patched MLX-LM 0.32.0 venv, supplied serving/parser patch, temperature 1.0, 16K tokens per turn, prior reasoning replayed as `reasoning_content`, at most 12 turns, identical fixed tests and isolated original-source copies.
+
+Seed 0 exhausted its turn budget with eight regression failures. Seed 1 passed all 36 fixed repository/regression tests. Seed 2 introduced a syntax error and emitted an invalid repair call; the patched server returned its failed text, but the harness ended on a no-call stop response. Final tests retained that failure (six import errors). Every transcript, patch and outcome is in [rerun-patched](../results/repository-agent/whatisit-macos/rerun-patched/README.md). Original source checkout and original runtime remain unchanged. This one-task result is not a general reliability rate or an isolated causal test of the patch.
+
+The completion audit was independently reproduced using NumPy 2.5.3 and SciPy 1.18.1: 4-bit/BF16 paired geometric mean **2.22×**, median ratio **2.14×**, n = 144, Wilcoxon p = **5.1×10⁻²⁵**. Exact output is retained in `results/coding/humaneval-plus/length-audit.txt`.

@@ -144,3 +144,22 @@ The 16K synthetic run and streaming/non-streaming HTTP addition probe passed. Th
 Seed 0 exhausted its turn budget with eight regression failures. Seed 1 passed all 36 fixed repository/regression tests. Seed 2 introduced a syntax error and emitted an invalid repair call; the patched server returned its failed text, but the harness ended on a no-call stop response. Final tests retained that failure (six import errors). Every transcript, patch and outcome is in [rerun-patched](../results/repository-agent/whatisit-macos/rerun-patched/README.md). Original source checkout and original runtime remain unchanged. This one-task result is not a general reliability rate or an isolated causal test of the patch.
 
 The completion audit was independently reproduced using NumPy 2.5.3 and SciPy 1.18.1: 4-bit/BF16 paired geometric mean **2.22×**, median ratio **2.14×**, n = 144, Wilcoxon p = **5.1×10⁻²⁵**. Exact output is retained in `results/coding/humaneval-plus/length-audit.txt`.
+
+## Mixed non-expert precision screen
+
+Completed three conversions directly from pinned BF16, with expert matrices unchanged at affine 4-bit/g64, routers at 8-bit/g64 and source-precision exclusions. A raises attention to 6-bit; B raises embeddings/head to 6-bit; C does both. All passed serialized-parameter, tokenizer, finite-forward and save/reload gates. Frozen authored development tasks, separate from HumanEval+, greedy 8,192-token budget, one sequential CUDA run per model.
+
+| Model | Weight GB | Passed | Gen s | Failed s | Tokens | Trunc / empty | CUDA MLX GB |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| bf16 | 24.301 | 20/24 | 397.4 | 82.1 | 70,353 | 1 / 1 | 26.08 |
+| 4bit | 6.837 | 15/24 | 605.1 | 286.7 | 137,037 | 7 / 7 | 8.66 |
+| mxfp4 | 6.457 | 21/24 | 323.2 | 61.9 | 73,537 | 0 / 0 | 7.86 |
+| A | 6.985 | 21/24 | 411.5 | 104.2 | 90,058 | 2 / 2 | 8.53 |
+| B | 6.950 | 14/24 | 609.9 | 344.6 | 136,333 | 9 / 8 | 8.70 |
+| C | 7.099 | 22/24 | 399.7 | 74.8 | 87,062 | 2 / 2 | 8.65 |
+
+All GB are decimal; memory is the CUDA MLX allocator peak, not system or Metal memory. Generation time includes every failed/truncated attempt. Across six models: 2,746.9 s generation, 2,943.9 s including per-run startup, sandbox tests and shutdown.
+
+**Reject all for promotion.** C gained two tasks over MXFP4 and lost one, descriptive exact McNemar p = 1.0. Its one-task net gain comes with 23.7% more generation time, 18.4% more tokens and 9.9% more weight bytes. A tied MXFP4 and was slower/larger; B did not recover the baseline. A/C substantially improved over native 4-bit, which is insufficient to recommend a final product. HumanEval+ and M4 gates were not run for these candidates.
+
+[Commands, exact sizes, integrity scope, paired failure inspection and limitations](NONEXPERT_EXPERIMENT.md); [immutable receipts and compressed raw responses](../results/nonexpert-v1/). One recommended follow-up: keep C as control and reduce only expert down-projection affine 4-bit group size to 32 (estimated 7.331 GB); this was not run.

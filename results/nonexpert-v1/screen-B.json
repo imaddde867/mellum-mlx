@@ -1,0 +1,348 @@
+{
+  "model": "artifacts/mellum2.1-mixed-B-g64",
+  "weights_sha256": {
+    "model-00001-of-00002.safetensors": "e67a1c6b2964f2e13c87a5f5f19e45acf5f675b6d4d4abef2fd5d30a97e28854",
+    "model-00002-of-00002.safetensors": "f900168cb0405595424e26927e0d9a69e40a0fb43ff46665999dbf45b2902d85"
+  },
+  "weight_bytes": 6949933574,
+  "config_sha256": "091c59fa0e4ab9e547f6d329204a45c755b2336e2e5541ac9c2b33e3f004e56d",
+  "script_sha256": "edea948fec9db44a50d59d4a67b044abc3809a4fb7e21fa55eb138161a2d4217",
+  "git_revision": "44f3c720743098d51c2a25343f1b9855ff871f9e",
+  "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.39",
+  "packages": {
+    "mlx": "0.32.3",
+    "mlx-lm": "0.32.0",
+    "transformers": "5.19.0",
+    "safetensors": "0.8.0"
+  },
+  "label": "B",
+  "protocol": {
+    "sha256": "1d343046c2b48f70fde42e2f7cf652ebca7ebff5a380e6a4f3d4235bcb5a9279",
+    "tasks": 24,
+    "authorship": "Authored and frozen before any sprint candidate generation. No HumanEval or repository-task questions or observed outputs used. Synthetic development screen; possible training overlap unknown.",
+    "max_tokens": 8192,
+    "temperature": 0,
+    "seed": 0,
+    "prefill_step_size": 512,
+    "selection": "At most one promotion: material task-level quality or total generation-time improvement vs MXFP4, near 7.5 decimal GB. A 1-2 task difference alone is insufficient; report paired differences and runtime variability. No promotion if evidence is weak.",
+    "fixture_validation": "Syntax compiled; escaped-backslash input corrected before any sprint generation. No model outputs inspected."
+  },
+  "fixture_manifest_sha256": "1b94c91dac51cae7ca61fd3cad62e06836b49d8197609cfe1b826f77360d3be8",
+  "sandbox_image": "ganler/evalplus@sha256:26b118098bef281fe8dfe999bf05f1d5b45374b4e6c00161ec0f30592aef4740",
+  "http_probe_sha256": "286aba5cd640f1f2e1e8e06d95f1691409ab0366cd89dfd8993dc9109f907200",
+  "server_sha256": "57392576de114af80ede723976b9dd156dc234f856b9943b8b44b8b78bc27f79",
+  "status": "complete",
+  "rows": [
+    {
+      "id": "NE/00",
+      "elapsed_s": 16.54938820899406,
+      "completion_tokens": 3304,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def merge_ranges(ranges):\n    # Filter out empty ranges\n    filtered = []\n    for r in ranges:\n        start, end = r[0], r[1]\n        if start < end:\n            filtered.append((start, end))\n    filtered.sort(key=lambda x: x[0])\n    merged = []\n    for r in filtered:\n        if not merged:\n            merged.append([r[0], r[1]])\n        else:\n            last = merged[-1]\n            if r[0] <= last[1]:\n                last[1] = max(last[1], r[1])\n            else:\n                merged.append([r[0], r[1]])\n    result = [tuple(item) for item in merged]\n    return result",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/01",
+      "elapsed_s": 26.648411411006236,
+      "completion_tokens": 5963,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "import heapq\ndef topological(edges, nodes):\n    graph = {node: [] for node in nodes}\n    indegree = {node: 0 for node in nodes}\n    seen = set()\n    for u, v in edges:\n        if (u, v) in seen:\n            continue\n        seen.add((u, v))\n        if u in graph and v in graph:\n            graph[u].append(v)\n            indegree[v] += 1\n    heap = [node for node in nodes if indegree[node] == 0]\n    heapq.heapify(heap)\n    result = []\n    while heap:\n        node = heapq.heappop(heap)\n        result.append(node)\n        for neighbor in graph[node]:\n            indegree[neighbor] -= 1\n            if indegree[neighbor] == 0:\n                heapq.heappush(heap, neighbor)\n    if len(result) != len(nodes):\n        raise ValueError(\"Cycle\")\n    return result",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/02",
+      "elapsed_s": 36.77423763099068,
+      "completion_tokens": 8192,
+      "truncated": true,
+      "empty": true,
+      "passed": false,
+      "execution": {
+        "sanitized": "",
+        "passed": false,
+        "error": "NameError: name 'decode_runs' is not defined"
+      }
+    },
+    {
+      "id": "NE/03",
+      "elapsed_s": 18.021078309000586,
+      "completion_tokens": 4029,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def lru(capacity, operations):\n    if capacity == 0:\n        results = []\n        for op in operations:\n            if op[0] == \"get\":\n                results.append(-1)\n        return results\n    cache = {}\n    order = []  # least recent first\n    results = []\n    for op in operations:\n        if op[0] == \"put\":\n            _, key, value = op\n            if key in cache:\n                cache[key] = value\n                order.remove(key)\n                order.append(key)\n            else:\n                if len(cache) >= capacity:\n                    lru_key = order.pop(0)\n                    del cache[lru_key]\n                cache[key] = value\n                order.append(key)\n        elif op[0] == \"get\":\n            _, key = op\n            if key in cache:\n                order.remove(key)\n                order.append(key)\n                results.append(cache[key])\n            else:\n                results.append(-1)\n    return results",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/04",
+      "elapsed_s": 10.155815368008916,
+      "completion_tokens": 2270,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def flatten(value):\n    if isinstance(value, (list, tuple)):\n        result = []\n        for item in value:\n            result.extend(flatten(item))\n        return result\n    else:\n        return [value]",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/05",
+      "elapsed_s": 36.67655943000864,
+      "completion_tokens": 8192,
+      "truncated": true,
+      "empty": true,
+      "passed": false,
+      "execution": {
+        "sanitized": "",
+        "passed": false,
+        "error": "NameError: name 'path_normalize' is not defined"
+      }
+    },
+    {
+      "id": "NE/06",
+      "elapsed_s": 12.094438867992721,
+      "completion_tokens": 2693,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "import heapq\ndef shortest(graph, start, end):\n    if start == end:\n        return 0\n    dist = {start: 0}\n    heap = [(0, start)]\n    while heap:\n        d, node = heapq.heappop(heap)\n        if node == end:\n            return d\n        for neighbor, weight in graph.get(node, []):\n            nd = d + weight\n            if neighbor not in dist or nd < dist[neighbor]:\n                dist[neighbor] = nd\n                heapq.heappush(heap, (nd, neighbor))\n    return None",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/07",
+      "elapsed_s": 19.55991412399453,
+      "completion_tokens": 4353,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "from collections import deque\ndef window_max(values, k):\n    if k <= 0:\n        raise ValueError(\"k must be positive\")\n    if k > len(values):\n        return []\n    dq = deque()\n    result = []\n    for i, val in enumerate(values):\n        while dq and dq[0] <= i - k:\n            dq.popleft()\n        while dq and values[dq[-1]] < val:\n            dq.pop()\n        dq.append(i)\n        if i >= k - 1:\n            result.append(values[dq[0]])\n    return result",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/08",
+      "elapsed_s": 36.63315207899723,
+      "completion_tokens": 8192,
+      "truncated": true,
+      "empty": true,
+      "passed": false,
+      "execution": {
+        "sanitized": "",
+        "passed": false,
+        "error": "NameError: name 'split_escaped' is not defined"
+      }
+    },
+    {
+      "id": "NE/09",
+      "elapsed_s": 36.630591071996605,
+      "completion_tokens": 8192,
+      "truncated": true,
+      "empty": true,
+      "passed": false,
+      "execution": {
+        "sanitized": "",
+        "passed": false,
+        "error": "NameError: name 'deep_merge' is not defined"
+      }
+    },
+    {
+      "id": "NE/10",
+      "elapsed_s": 22.378766024994547,
+      "completion_tokens": 4994,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def rate_limit(events, limit, window):\n    if limit == 0:\n        return [False] * len(events)\n    result = []\n    key_windows = {}\n    for timestamp, key in events:\n        if key not in key_windows:\n            key_windows[key] = []\n        timestamps = key_windows[key]\n        # Remove outdated accepted events\n        while timestamps and timestamps[0] <= timestamp - window:\n            timestamps.pop(0)\n        if len(timestamps) < limit:\n            result.append(True)\n            timestamps.append(timestamp)\n        else:\n            result.append(False)\n    return result",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/11",
+      "elapsed_s": 36.15220236001187,
+      "completion_tokens": 8192,
+      "truncated": true,
+      "empty": true,
+      "passed": false,
+      "execution": {
+        "sanitized": "",
+        "passed": false,
+        "error": "NameError: name 'json_pointer' is not defined"
+      }
+    },
+    {
+      "id": "NE/12",
+      "elapsed_s": 9.812033797003096,
+      "completion_tokens": 2176,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def stable_unique(values):\n    result = []\n    for v in values:\n        for item in result:\n            if item == v:\n                break\n        else:\n            result.append(v)\n    return result",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/13",
+      "elapsed_s": 16.201500748007675,
+      "completion_tokens": 3663,
+      "truncated": false,
+      "empty": false,
+      "passed": false,
+      "execution": {
+        "sanitized": "def parse_duration(text):\n    if not text:\n        raise ValueError(\"Empty input\")\n    total = 0\n    i = 0\n    n = len(text)\n    while i < n:\n        if not text[i].isdigit():\n            raise ValueError(\"Malformed input\")\n        num = 0\n        while i < n and text[i].isdigit():\n            num = num * 10 + ord(text[i]) - ord('0')\n            i += 1\n        if i >= n or text[i] not in 'hms':\n            raise ValueError(\"Malformed input\")\n        unit = text[i]\n        i += 1\n        if unit == 'h':\n            total += num * 3600\n        elif unit == 'm':\n            total += num * 60\n        elif unit == 's':\n            total += num * 1\n        else:\n            raise ValueError(\"Malformed input\")\n    return total",
+        "passed": false,
+        "error": "AssertionError: 1m1h"
+      }
+    },
+    {
+      "id": "NE/14",
+      "elapsed_s": 36.473613326001214,
+      "completion_tokens": 8192,
+      "truncated": true,
+      "empty": true,
+      "passed": false,
+      "execution": {
+        "sanitized": "",
+        "passed": false,
+        "error": "NameError: name 'apply_patch' is not defined"
+      }
+    },
+    {
+      "id": "NE/15",
+      "elapsed_s": 23.060242803010624,
+      "completion_tokens": 5205,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def paginate(items, after, limit):\n    if limit <= 0:\n        raise ValueError(\"limit must be positive\")\n    # Sort items by id\n    sorted_items = sorted(items, key=lambda x: x['id'])\n    # Filter items with id > after\n    filtered = []\n    for item in sorted_items:\n        item_id = item['id']\n        if after is not None and item_id <= after:\n            continue\n        filtered.append(item)\n    # Take up to limit items for the page\n    page = filtered[:limit]\n    # Determine next_cursor\n    if len(filtered) > len(page):\n        # More items remain beyond the page\n        if page:\n            next_cursor = page[-1]['id']\n        else:\n            next_cursor = None\n    else:\n        next_cursor = None\n    return (page, next_cursor)",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/16",
+      "elapsed_s": 36.293606699007796,
+      "completion_tokens": 8192,
+      "truncated": true,
+      "empty": true,
+      "passed": false,
+      "execution": {
+        "sanitized": "",
+        "passed": false,
+        "error": "NameError: name 'expression' is not defined"
+      }
+    },
+    {
+      "id": "NE/17",
+      "elapsed_s": 36.25907219199871,
+      "completion_tokens": 8192,
+      "truncated": true,
+      "empty": false,
+      "passed": false,
+      "execution": {
+        "sanitized": "def components(n, edges):\n    parent = list(range(n))\n    def find(x):\n        while parent[x] != x:\n            parent[x] = parent[parent[x]]\n            x = parent[x]\n        return x\n    def union(x, y):\n        rx,",
+        "passed": false,
+        "error": "AssertionError: "
+      }
+    },
+    {
+      "id": "NE/18",
+      "elapsed_s": 21.823627703997772,
+      "completion_tokens": 4884,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def retry_delays(attempts, initial, cap):\n    if attempts < 0 or initial < 0 or cap < 0:\n        raise ValueError(\"Negative arguments\")\n    delays = []\n    for i in range(attempts):\n        delay = initial * (2 ** i)\n        if delay > cap:\n            delay = cap\n        delays.append(delay)\n    return delays",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/19",
+      "elapsed_s": 11.931168915994931,
+      "completion_tokens": 2664,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "import csv\nimport io\ndef csv_records(text):\n    if not text:\n        return []\n    reader = csv.reader(io.StringIO(text))\n    rows = list(reader)\n    if not rows:\n        return []\n    headers = rows[0]\n    if len(headers) != len(set(headers)):\n        raise ValueError(\"Duplicate headers\")\n    records = []\n    for row in rows[1:]:\n        if len(row) != len(headers):\n            raise ValueError(\"Row has different number of fields\")\n        records.append({headers[i]: row[i] for i in range(len(headers))})\n    return records",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/20",
+      "elapsed_s": 27.536298810999142,
+      "completion_tokens": 6180,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def version_sort(versions):\n    def normalize(v):\n        parts = []\n        for p in v.split('.'):\n            parts.append(int(p))\n        # Remove trailing zero segments\n        while parts and parts[-1] == 0:\n            parts.pop()\n        return parts\n    return sorted(versions, key=normalize)",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/21",
+      "elapsed_s": 36.54079251999792,
+      "completion_tokens": 8192,
+      "truncated": true,
+      "empty": true,
+      "passed": false,
+      "execution": {
+        "sanitized": "",
+        "passed": false,
+        "error": "NameError: name 'glob_match' is not defined"
+      }
+    },
+    {
+      "id": "NE/22",
+      "elapsed_s": 20.005343662007363,
+      "completion_tokens": 4481,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def schedule(jobs):\n    # sort jobs by end time without mutating original jobs\n    sorted_jobs = sorted(jobs, key=lambda x: x[1])\n    n = len(sorted_jobs)\n    dp = [0] * (n + 1)\n    for i in range(1, n + 1):\n        start, end, profit = sorted_jobs[i-1]\n        best_prev = 0\n        for j in range(i-1):\n            if sorted_jobs[j][1] <= start:\n                if dp[j+1] > best_prev:\n                    best_prev = dp[j+1]\n        dp[i] = max(dp[i-1], profit + best_prev)\n    return dp[n]",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/23",
+      "elapsed_s": 25.69973973200831,
+      "completion_tokens": 5746,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def memo_cycle(definitions, name):\n    visited = set()\n    memo = {}\n    def dfs(current):\n        if current in memo:\n            return memo[current]\n        if current in visited:\n            raise ValueError()\n        visited.add(current)\n        if current not in definitions:\n            raise ValueError()\n        val = definitions[current]\n        if isinstance(val, int):\n            result = val\n        elif isinstance(val, list):\n            total = 0\n            for dep in val:\n                dep_val = dfs(dep)\n                total += dep_val\n            result = total\n        else:\n            raise ValueError()\n        visited.remove(current)\n        memo[current] = result\n        return result\n    return dfs(name)",
+        "passed": true
+      }
+    }
+  ],
+  "passed": 14,
+  "generation_s": 609.9115957960312,
+  "failed_generation_s": 344.63532805701834,
+  "completion_tokens": 136333,
+  "truncated": 9,
+  "empty": 8,
+  "elapsed_with_startup_and_tests_s": 638.854698768002,
+  "raw_sha256": "ea031e70fc7bb2113b9ade6d323fa8d83fa48135c291cfbb7276cee1f43b6a5c",
+  "memory": {
+    "mlx_peak_bytes": 8704259784,
+    "mlx_active_bytes_at_shutdown": 8309530384,
+    "scope": "MLX allocator peak, including load; excludes system/GPU driver memory"
+  }
+}

@@ -119,8 +119,20 @@ Periodic system counters are in `results/mac/native-comparison-system-snapshots.
 
 Native 6-bit, RTX 5090, the same greedy 8,192-token response budget, allowlisted tools, fixed regressions, and generated code executed only inside the pinned offline unprivileged Docker container. Repository: `imaddde867/whatisit-macos` at `fbdcb10b289001baf2c0e444bb963e421262a4fd`. The original checkout was not modified.
 
-The mutation-routing task failed its bounded trials: malformed whole-file tool JSON, unsuccessful exact edits, and reasoning/output-budget exhaustion. A fresh trial with corrected plain-text file responses still failed. All failed transcripts, tests and harnesses are preserved.
+The mutation-routing task failed its bounded trials. The model emitted invalid tool-call JSON with unescaped quotes in code. MLX-LM 0.32.0 logged `Expecting ',' delimiter` at `work/repository-agent/server.log:29` and `work/repository-agent/retry-edit/server.log:47`, then dropped the invalid calls from the client response while still returning `finish_reason: "tool_calls"` with no calls. The whole-file harness incorrectly treated that response as finished. These are separate model, serving and harness contributions; the warnings do not establish truncation as the cause. Both exact log lines are retained in [parser-warnings.txt](../results/repository-agent/whatisit-macos/parser-warnings.txt).
+
+Other routing attempts introduced an unrepaired syntax error, used insufficient substring matching, or exhausted the reasoning/output budget. A fresh trial with corrected plain-text file responses still failed. Every transcript, test outcome and harness is preserved. Greedy sampling and failure to replay prior reasoning as `reasoning_content` were further harness limitations.
 
 A separate smaller retrieval-limit task succeeded. The baseline failed; Mellum read the source, added a two-line integer type check that rejects booleans/non-integer values before database access, and passed all 36 fixed repository/regression tests. The generated patch was independently reviewed. Its transcript, source snapshots, exact harness and test outputs are in `results/repository-agent/whatisit-macos/limit-validation/`.
 
 This demonstrates a contained tool/read/edit/test workflow on one task and exposes failures on another. It is not a repository-agent success rate, broad reliability proof or a Metal agent result. Adapter changes, retries and the separate continuation are documented; successful evidence does not replace failed attempts.
+
+## Completion-length audit
+
+On the same paired tasks where both generations stopped (n = 144), native 4-bit used about **2.2× longer reasoning-heavy completions than BF16** (paired Wilcoxon p ≈ 5×10⁻²⁵). Median completion tokens across all tasks were 3,242 versus 1,571. All 18 native 4-bit budget truncations ended during reasoning. The longer thinking and budget exhaustion help explain its lower score under the fixed 8,192-token protocol; they do not establish the underlying numerical cause. Completion-token counts include reasoning and final output, rather than a separately measured reasoning-token count.
+
+The supplied [length audit](../scripts/length_audit.py) reproduces paired outcomes, completion-token distributions and solved-within-budget counts from committed evidence (NumPy and SciPy required). The server and harness patches are in `patches/`. The temperature-1.0, 16K-budget, reasoning-replay routing rerun with seeds 0, 1 and 2 starts only after publication; every transcript will be retained.
+
+## Native 6-bit M4 release gate
+
+The 16K synthetic run and streaming/non-streaming HTTP addition probe passed. Three measured trials excluding warmup gave 48.0 / 47.1 / 43.5 decode tok/s and 1.609 / 7.099 / 32.450 s TTFT at 1K / 4K / 16K. Peak MLX memory was 10.31 GB at 4K and 10.51 GB at 16K. Swap grew materially across the sequence (282.81 MB initially; about 1.9 GB during later stages), although it decreased from 1,947.31 MB to 1,883.31 MB within the sampled 16K stage. Editor-open status was not recorded. The release card retains **16 GB: not recommended**. Raw reports are under `results/mac/6bit-*.json`. This gate covers the measured workloads, not broad agent reliability or independent architecture parity.

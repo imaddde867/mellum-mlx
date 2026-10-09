@@ -1,0 +1,35 @@
+--- a/harness.py	2026-10-09 13:15:38.331801410 +0000
++++ b/harness.py	2026-10-09 13:15:51.379929972 +0000
+@@ -8,6 +8,7 @@
+ import time
+ from pathlib import Path
+ sys.path.insert(0, 'scripts')
++SEED = int(os.environ.get('AGENT_SEED', '0'))  # run seeds 0, 1, 2 into separate output dirs
+ from http_probe import request
+ from evaluate_coding import IMAGE
+ from coding_probe import weight_hashes
+@@ -51,7 +52,8 @@
+     'baseline_engine_sha256': hashlib.sha256(before).hexdigest(), 'image': IMAGE,
+     'adapter': 'plain text read_file results; prior trials used JSON-quoted text',
+     'scope': 'one authored regression in an isolated tracked-files copy; no general agent-success claim',
+-    'max_turns': 12, 'temperature': 0, 'max_tokens': 8192, 'status': 'running'}
++    'max_turns': 12, 'temperature': 1.0, 'max_tokens': 16384, 'seed': SEED,
++    'reasoning_replay': 'reasoning_content', 'status': 'running'}
+ (out / 'receipt.json').write_text(json.dumps(receipt, indent=2) + '\n')
+ def tool(name, description, properties, required):
+     return {'type': 'function', 'function': {'name': name, 'description': description,
+@@ -76,8 +78,12 @@
+         else: raise TimeoutError('Server startup')
+         for turn in range(12):
+             response = request(url + '/chat/completions', {'model': model, 'messages': messages, 'tools': tools,
+-                'temperature': 0, 'seed': 0, 'max_tokens': 8192, 'stream': False})
+-            message = response['message']; messages.append(message)
++                'temperature': 1.0, 'seed': SEED, 'max_tokens': 16384, 'stream': False})
++            message = dict(response['message'])
++            # Mellum's template replays tool-chain reasoning only from reasoning_content.
++            if message.get('reasoning'):
++                message['reasoning_content'] = message.pop('reasoning')
++            messages.append(message)
+             transcript.write(json.dumps({'turn': turn, 'response': response}) + '\n'); transcript.flush()
+             calls = message.get('tool_calls') or []
+             print('turn', turn, 'tools', [c['function']['name'] for c in calls], flush=True)

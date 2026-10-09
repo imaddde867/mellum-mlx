@@ -52,6 +52,8 @@ For an independent short-context reference, create a separate environment, insta
 python scripts/reference_score.py work/source   --mlx-reference results/cuda/bf16-probe.json   --output results/local/transformers-bf16.json
 ```
 
+For isolated executable coding comparisons, see [the fixed HumanEval+ protocol](docs/CODING_PROTOCOL.md). Full scores are pending.
+
 See [the research and experiment plan](docs/PLAN.md) and [measurement notes](docs/RESULTS.md). Reports refuse to overwrite prior measurements.
 
 ## Provenance and attribution

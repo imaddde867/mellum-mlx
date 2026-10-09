@@ -77,7 +77,7 @@ Five bounded trials on one small Python repository, run on CUDA through the MLX-
   - One edit introduced a syntax error the model didn't repair.
   - One fix used substring matching, which misses "changing" and "deleting".
   - Two turns spent the whole 8,192-token budget thinking.
-- **Harness limitations in these runs:** greedy decoding, prior reasoning not passed back between steps, and file contents double-escaped in the early trials. A rerun with the settings recommended above is pending.
+- **Harness limitations in these runs:** greedy decoding, prior reasoning not passed back between steps, and file contents double-escaped in the early trials. The post-publication rerun used a separate patched MLX-LM environment, temperature 1.0, 16K tokens per turn and `reasoning_content` replay: **1 success out of 3 seeds (0, 1, 2)**. Seed 1 passed all 36 fixed tests; seed 0 exhausted its turn budget and seed 2 left a syntax error followed by an invalid repair call. All rerun transcripts and outcomes are retained. This is one task, not a general reliability estimate.
 
 Every transcript is retained in the GitHub repo. This is not an agent success rate.
 

@@ -33,7 +33,7 @@ The installed parser/serializer preserved single/multiple calls, escaped JSON ar
 
 ## Pending
 
-Independent long-context numerical audit, executable coding benchmark, broader live HTTP scenarios, resolution of the intermittent DWQ discrepancy, meaningful held-out DWQ calibration and native-conversion Apple Silicon validation. Comparator-only Mac measurements do not support claims about our native conversions or superior coding quality.
+Independent long-context numerical audit, broader live HTTP scenarios, resolution of the intermittent DWQ discrepancy, and native-conversion Apple Silicon validation. Advanced DWQ calibration is deferred until after the initial release. Comparator-only Mac measurements do not support claims about our native conversions or superior coding quality.
 
 ## DWQ compatibility pilot
 
@@ -61,7 +61,7 @@ A temporary loopback-only MLX-LM server generated a valid `add(2, 3)` tool call,
 
 ## M4 Metal comparator measurements
 
-14-inch MacBook Pro, Apple M4 (10 CPU / 10 GPU cores), 16 GB unified memory, macOS 27.0.1, AC power. Lid closed; the user reports Amphetamine keep-awake. MLX 0.32.3 / MLX-LM 0.32.0. The pinned external MXFP4 artifact passed all checksums in its public receipt. Our native 4-bit conversion is still transferring and is not measured here.
+14-inch MacBook Pro, Apple M4 (10 CPU / 10 GPU cores), 16 GB unified memory, macOS 27.0.1, AC power. Lid closed; the user reports Amphetamine keep-awake. MLX 0.32.3 / MLX-LM 0.32.0. The pinned external MXFP4 artifact passed all checksums in its public receipt. Our native 4-bit conversion has completed transfer and checksum validation; its measurements are running and are not included in this table.
 
 Same synthetic throughput protocol as CUDA: warmup plus three measured greedy trials, 256 output tokens, prefill step 512. All trials reached the output budget. A separate artifact transfer ran concurrently; these are preliminary measurements rather than isolated performance rankings.
 
@@ -82,3 +82,18 @@ Native 4-bit, repeated authored fixture text, lengths 1,023 / 1,024 / 1,025 / 2,
 Raw logits differed even on repeated uncached forwards. The cause is unresolved; do not interpret cached-versus-uncached differences as an isolated cache defect or declare exact reproducibility. See `results/cuda/4bit-cache-probe.json`.
 
 The first diagnostic ran out of CUDA memory on its final uncached 2,049-token forward. A fresh process completed that forward at 18.71 GB MLX peak. Clearing allocator cache between contexts enabled the full diagnostic; before the final context, 6.84 GB was active and 12.77 GB was cached. The initial failure and retry are retained in `results/cuda/cache-first-run-failure.json`. This change controls the diagnostic's allocation retention; it is not an upstream model fix.
+
+## Completed HumanEval+ comparison
+
+All four CUDA candidates completed the same 164 tasks under [the fixed protocol](CODING_PROTOCOL.md), one greedy sample per task, 8,192 completion tokens. Every failure was retained. Full samples, raw responses, original generation receipts, evaluation protocols, sanitized samples and task-level outcomes are in `results/coding/humaneval-plus/`. Post-run archive receipts bind the committed files; the original runs lack generation-time sample and weight checksum binding. This cannot be reconstructed retroactively and is explicitly recorded. New runs enforce those bindings.
+
+| Candidate | Base passed / 164 | Expanded passed / 164 | HumanEval+ | Truncated | Empty final answers |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| BF16 | 158 | 153 | 93.3% | 3 | 3 |
+| Native 4-bit/g64 | 141 | 133 | 81.1% | 18 | 18 |
+| Native 6-bit/g64 | 156 | 146 | 89.0% | 3 | 3 |
+| Existing MXFP4 | 153 | 144 | 87.8% | 6 | 4 |
+
+For 6-bit versus MXFP4, 137 tasks passed both, nine passed only 6-bit, seven passed only MXFP4, and eleven passed neither. Exact two-sided McNemar p = 0.8036. This single run does not establish a quality advantage. Wilson 95% intervals are recorded in `summary.json` as descriptive task-sampling uncertainty; they do not account for benchmark selection, training overlap or runtime variability.
+
+Native 6-bit is the leading native release candidate pending M4 validation. MXFP4 remains the better demonstrated quality/size balance. Native 4-bit has no demonstrated quality/size advantage and is not recommended as the default. These tasks do not establish repository-agent reliability, and CUDA greedy decoding is not bitwise deterministic.

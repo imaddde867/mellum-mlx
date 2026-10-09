@@ -2,7 +2,7 @@
 
 Reproducible Mellum2.1 quantization experiments and validation for local coding-agent use.
 
-**Research preview.** Native 4-bit and 6-bit conversions have been built and structurally validated on an RTX 5090. Short numerical probes, throughput measurements through 16K context, protocol fixtures and a simple live HTTP tool round trip are available under [results](results). The pinned external MXFP4 comparator has also been measured on a 16 GB M4 Mac through 16K context and passed the simple live HTTP round trip. Mac validation of our native conversions, executable coding benchmarks, long-context parity and representative agent integration remain pending. No claim of superior coding quality or production readiness is made.
+**Research preview.** Native 4-bit and 6-bit conversions have been built and structurally validated on an RTX 5090. Short numerical probes, throughput measurements through 16K context, protocol fixtures and a simple live HTTP tool round trip are available under [results](results). The pinned external MXFP4 comparator has also been measured on a 16 GB M4 Mac through 16K context and passed the simple live HTTP round trip. The full 164-task HumanEval+ comparison is complete: BF16 93.3%, native 6-bit 89.0%, external MXFP4 87.8%, native 4-bit 81.1%. Native 4-bit passed M4 fidelity/HTTP smoke tests and throughput measurements through 16K. Native 6-bit M4 validation and a contained repository-agent trial are underway; long-context parity remains unresolved. No claim of superior coding quality or production readiness is made.
 
 The contribution we aim to deliver is a measured quality–size–speed comparison, correct tool integration, and reproducible artifacts. Quantization methods and the model architecture come from upstream projects.
 
@@ -52,7 +52,7 @@ For an independent short-context reference, create a separate environment, insta
 python scripts/reference_score.py work/source   --mlx-reference results/cuda/bf16-probe.json   --output results/local/transformers-bf16.json
 ```
 
-For isolated executable coding comparisons, see [the fixed HumanEval+ protocol](docs/CODING_PROTOCOL.md). Full scores are pending.
+For isolated executable coding comparisons, see [the fixed HumanEval+ protocol](docs/CODING_PROTOCOL.md). Full samples, outcomes and provenance limitations are published in [measurement notes](docs/RESULTS.md).
 
 See [the research and experiment plan](docs/PLAN.md) and [measurement notes](docs/RESULTS.md). Reports refuse to overwrite prior measurements.
 

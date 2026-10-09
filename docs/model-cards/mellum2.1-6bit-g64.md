@@ -59,6 +59,6 @@ Keep the upstream tokenizer and thinking template. Reasoning and the final answe
 
 ## Known limits
 
-Independent long-context architecture parity remains unresolved. Short numerical probes and synthetic throughput do not establish general quality. A contained repository-agent integration is being tested separately. No full SWE-bench result, broad agent success rate, novel quantization algorithm or best-model claim is made.
+Independent long-context architecture parity remains unresolved. Short numerical probes and synthetic throughput do not establish general quality. A contained CUDA retrieval-validation task passed all 36 fixed repository/regression tests after a model-generated patch. A separate mutation-routing task failed its bounded trials; both outcomes and adapter changes are preserved in the evidence repository. This is not a general agent-success rate or a Metal agent result. No full SWE-bench result, broad agent success rate, novel quantization algorithm or best-model claim is made.
 
 [JetBrains original model](https://huggingface.co/JetBrains/Mellum2.1-12B-A2.5B-Thinking) · [MLX-LM](https://github.com/ml-explore/mlx-lm) · [MXFP4 comparator by randmaru](https://huggingface.co/randmaru/Mellum2.1-12B-A2.5B-Thinking-mlx-mxfp4)

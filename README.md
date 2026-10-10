@@ -62,7 +62,7 @@ python scripts/convert.py --bits 6
 python scripts/validate.py artifacts/mellum2.1-affine-6bit-g64
 ```
 
-On Apple Silicon, install `requirements.txt` and omit the CUDA install. Conversion downloads about 24.3 GB of BF16 weights and requires sufficient RAM/VRAM and disk space; the conversion has not been tested on a 16 GB Mac. Download the validated artifact once a model release is available rather than assuming conversion fits that machine.
+On Apple Silicon, install `requirements.txt` and omit the CUDA install. Conversion downloads about 24.3 GB of BF16 weights and requires sufficient RAM/VRAM and disk space; the conversion has not been tested on a 16 GB Mac. On a 16 GB Mac, download a released artifact (see the table above) rather than assuming conversion fits that machine.
 
 The converter refuses to overwrite an existing artifact. A `conversion.json` receipt records source revision, software versions, quantization settings and SHA-256 checksums. Tokenizer and template files are preserved byte-for-byte. Weight files and caches are excluded from Git.
 

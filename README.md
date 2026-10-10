@@ -1,10 +1,46 @@
 # Mellum MLX
 
-Reproducible Mellum2.1 quantization experiments and validation for local coding-agent use.
+Benchmarked MLX quantizations of JetBrains' [Mellum2.1-12B-A2.5B-Thinking](https://huggingface.co/JetBrains/Mellum2.1-12B-A2.5B-Thinking) for Apple Silicon, with the measurements and tool-calling findings behind them.
 
-**Research preview.** Native 4-bit and 6-bit conversions have been built and structurally validated on a CUDA GPU. Short numerical probes, throughput measurements through 16K context, protocol fixtures and a simple live HTTP tool round trip are available under [results](results). The pinned external MXFP4 comparator has also been measured on a 16 GB M4 Mac through 16K context and passed the simple live HTTP round trip. The full 164-task HumanEval+ comparison is complete: BF16 93.3%, native 6-bit 89.0%, external MXFP4 87.8%, native 4-bit 81.1%. Native 4-bit passed M4 fidelity/HTTP smoke tests and throughput measurements through 16K. Native 6-bit passed the M4 16K and HTTP release gates and is [available on Hugging Face](https://huggingface.co/imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit-g64). It used up to 10.51 GB of MLX memory with material system swap across the test sequence; 16 GB is not recommended. A contained retrieval task passed, while mutation-routing trials failed. The patched routing rerun passed 1 of 3 seeds; long-context parity remains unresolved. No claim of superior coding quality or production readiness is made.
+**Model:** [imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit-g64](https://huggingface.co/imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit-g64) (9.87 GB, MLX 6-bit affine, group 64).
 
-The contribution we aim to deliver is a measured quality–size–speed comparison, correct tool integration, and reproducible artifacts. Quantization methods and the model architecture come from upstream projects.
+```sh
+python -m pip install 'mlx==0.32.3' 'mlx-lm==0.32.0'
+python -m mlx_lm generate --model imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit-g64 \
+  --prompt 'Find the bug: def mean(xs): return sum(xs) / len(xs) - 1' \
+  --temp 0.6 --top-p 0.95 --top-k 20 --max-tokens 16384
+```
+
+## Which model for which Mac
+
+| Your Mac | Use | Why |
+| --- | --- | --- |
+| 24 GB or more | [This 6-bit](https://huggingface.co/imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit-g64) | HumanEval+ 89.0% vs 87.8% for MXFP4, a statistical tie (McNemar p = 0.80); 6-bit sits closer to BF16 at 93.3%. |
+| 16 GB | [randmaru MXFP4](https://huggingface.co/randmaru/Mellum2.1-12B-A2.5B-Thinking-mlx-mxfp4) | Ties this 6-bit on HumanEval+ at 6.46 GB. On the M4 16 GB, 6-bit peaked at 10.5 GB MLX memory with material swap. |
+
+I tried to build a better 16 GB model than MXFP4 (mixed 4/6-bit recipes, group-32 expert down-projections, DWQ calibration). Nothing beat it, so I stopped and recommend it. The experiments are archived under [`docs/` on the `archive/research-2026-10-11` tag](https://github.com/imaddde867/mellum-mlx/tree/archive/research-2026-10-11/docs).
+
+## Results
+
+164 HumanEval+ tasks, same CUDA GPU, upstream chat template, greedy decoding, 8,192 completion tokens, one sample per task:
+
+| Model | Weights | HumanEval+ | Median completion tokens |
+| --- | ---: | ---: | ---: |
+| BF16 original | 24.3 GB | 93.3% | 1,571 |
+| **This 6-bit** | 9.87 GB | 89.0% | 1,521 |
+| randmaru MXFP4 | 6.46 GB | 87.8% | 1,544 |
+| Plain affine 4-bit (not released) | 6.84 GB | 81.1% | 3,242 |
+
+Apple M4 (16 GB), decode tokens/s at 1K / 4K / 16K context: 6-bit 48.0 / 47.1 / 43.5; MXFP4 67.3 / 64.5 / 58.4 (separate sequential runs, same machine). Full tables, receipts and limitations: [docs/RESULTS.md](docs/RESULTS.md).
+
+## Findings
+
+- **Plain affine 4-bit writes 2.2x longer completions than BF16, mostly reasoning,** on the same tasks (paired Wilcoxon p = 5e-25, n = 144), hitting the token budget mid-thought on 18 of 164. 6-bit and MXFP4 stay at BF16's completion length. The cause is not established.
+- **MLX-LM 0.32.0 drops unparseable tool calls silently**: the response keeps `finish_reason: "tool_calls"` but `tool_calls` is empty. A tested patch is in [patches/](patches/). The same bug has an open upstream fix, [ml-explore/mlx-lm#1957](https://github.com/ml-explore/mlx-lm/pull/1957).
+- **Mellum's template replays prior reasoning only from `reasoning_content`**, but the server returns `reasoning`, so clients that echo messages back lose earlier thinking between tool steps.
+- **Repository-agent trials are weak evidence**: one task, 1 success of 3 seeds after patches. Not a reliability claim.
+
+Quantization methods and the model architecture come from upstream projects; this repository's contribution is measurement and integration.
 
 ## Reproduce
 
@@ -26,7 +62,7 @@ python scripts/convert.py --bits 6
 python scripts/validate.py artifacts/mellum2.1-affine-6bit-g64
 ```
 
-On Apple Silicon, install `requirements.txt` and omit the CUDA install. Conversion downloads about 24.3 GB of BF16 weights and requires sufficient RAM/VRAM and disk space; the conversion has not been tested on a 16 GB Mac. Download the validated artifact once a model release is available rather than assuming conversion fits that machine.
+On Apple Silicon, install `requirements.txt` and omit the CUDA install. Conversion downloads about 24.3 GB of BF16 weights and requires sufficient RAM/VRAM and disk space; the conversion has not been tested on a 16 GB Mac. On a 16 GB Mac, download a released artifact (see the table above) rather than assuming conversion fits that machine.
 
 The converter refuses to overwrite an existing artifact. A `conversion.json` receipt records source revision, software versions, quantization settings and SHA-256 checksums. Tokenizer and template files are preserved byte-for-byte. Weight files and caches are excluded from Git.
 

@@ -1,0 +1,116 @@
+{
+  "version": "calibration-v2-objective-1.0",
+  "predeclared_utc": "2026-10-10T12:53:41.228846+00:00",
+  "parent_commit": "5cdffc0",
+  "hypothesis": "assistant-target loss may improve useful assistant fidelity relative to a matched uniform DWQ control; unproven",
+  "arms": {
+    "U": "one on every nonpadding prediction target",
+    "S": "one on reasoning, transition, final and tool_call; zero on context and padding"
+  },
+  "normalization": "FP32 included-target loss sum divided by included-target count per batch; zero included targets is an error",
+  "teacher": {
+    "source_revision": "92ddae9fc7665e9f801d141d2e5a6b2caf2460c4",
+    "temperature": 2,
+    "top_k": 1024,
+    "objective": "renormalized teacher-to-student KL; FP32 before temperature scaling, KL and reductions; no T squared multiplier",
+    "training_capture": "separate BF16 process, full frozen contexts with cache-preserving 128-token inference chunks, file per trajectory ID",
+    "validation_capture": "reuse exact work/calibration-v2-teacher targets and receipt from 5cdffc0"
+  },
+  "data_manifest_sha256": "ba0184c6cccd077cef402c07013678f9927de306c09823812f73a782ec9bd9f2",
+  "order_sha256": "c31facefce5c2bdcfe013ca6be7d2fcff9016495e22a24b2f4296a584b5503c1",
+  "training": {
+    "seed": 123,
+    "batch_size": 1,
+    "learning_rate": 1e-07,
+    "optimizer": "Adam",
+    "betas": [
+      0.9,
+      0.999
+    ],
+    "epsilon": 1e-08,
+    "bias_correction": true,
+    "maximum_updates_per_arm": 128,
+    "passes": 1,
+    "precision": "FP32 optimizer parameters/moments, BF16 model scales/biases, FP32 KL",
+    "eligible": "only affine scales/biases with bits<8; packed weights, routers, other tensors, schemas and tokenizer fixed",
+    "full_trajectory": true,
+    "truncation": false,
+    "padding": "none at batch one; objective tested with padding",
+    "checkpointing": "installed grad_checkpoint on first layer wraps all 28 layers of that type; one installation per process",
+    "detached_cache_training": false
+  },
+  "memory_preflight": {
+    "optimizer_updates": 0,
+    "cases": "shortest full training trajectory with/without checkpoint to quantify gradient equivalence; longest full trajectory U and S with checkpoint",
+    "resident_state": "original parameter references, FP32 parameters, Adam state and full gradients; checkpoint states stored on disk, no detached history",
+    "checkpoint_short_equivalence": "relative global gradient L2 difference <=0.05 and absolute loss difference <=0.005; CUDA repeat variation is not bitwise equivalence",
+    "failure": "preserve failure, no truncation/replacement/detached KV fallback; stop experiment before both arms"
+  },
+  "validation": {
+    "steps": [
+      0,
+      8,
+      32,
+      64,
+      96,
+      128
+    ],
+    "repeats": 5,
+    "model_mode": "eval; checkpoint wrapper installed; full contexts in preserved-cache 128-token inference chunks, identical to v2 eval protocol",
+    "primary": "assistant-only token-weighted FP32 KL",
+    "secondary": [
+      "reasoning",
+      "transition",
+      "final",
+      "tool_call",
+      "context",
+      "whole transcript"
+    ],
+    "family_summary": "token-weighted assistant/context/whole plus each region per underlying validation family; also unweighted family mean for reporting",
+    "reference": "five pristine-C repeats at U step zero and five at S step zero; every candidate must pass separately against BOTH references",
+    "gain": "candidate max < reference min AND reference mean minus candidate mean > max(reference range,candidate range)",
+    "no_region_regression": "reject if any assistant-region candidate min > reference max AND mean increase > both ranges; context tradeoffs reported but not hidden in a gate",
+    "screen": "empirical engineering rule, not confidence intervals; no claim of independent related variants"
+  },
+  "selection": {
+    "within_arm": "lowest assistant mean among checkpoints that pass against both pristine references; ties earlier step",
+    "across_arms": "if only one passes choose it; if both pass S must pass the same fidelity gate against best U, otherwise choose U; no candidate if neither passes",
+    "reload": "fresh process, five identical validation forwards; must pass both original pristine references with no assistant-region regression; failure stops behavior without fallback selection",
+    "reserve": "contents not loaded until candidate locked and reload fidelity/integrity passed"
+  },
+  "behavior_if_permitted": {
+    "version": "calibration-v2-reserved-1.0",
+    "models": [
+      "one locked candidate",
+      "pristine C",
+      "pinned MXFP4"
+    ],
+    "order": "reserved JSONL order, same for all three",
+    "prompt": "original task contract, named entry point, original supplied assertions; ask edit_file task.py, run_tests, then final full code",
+    "tools": "existing calibration-v2 strict read_file/edit_file/run_tests schemas; virtual workspace, sandbox for execution; final oracle always original assertions",
+    "serving": "existing loopback MLX-LM server, concurrency one, prefill 512, upstream thinking/template parser",
+    "sampling": "greedy, temperature zero, seed zero",
+    "completion_budget_total_per_task": 8192,
+    "max_responses_per_task": 4,
+    "budget": "aggregate across reasoning and all tool/final responses, no retries after task failure",
+    "measure": [
+      "executable correctness",
+      "strict call/schema validity",
+      "truncation",
+      "completion tokens",
+      "generation elapsed including failed/truncated attempts"
+    ],
+    "candidate_locked_before_reserved": true,
+    "post_eval_tuning": false,
+    "limitation": "original provided assertions only; not comprehensive hidden correctness tests"
+  },
+  "forbidden": [
+    "new recipes",
+    "dataset expansion",
+    "HumanEval+",
+    "M4",
+    "push",
+    "upload",
+    "learning-rate sweep"
+  ]
+}

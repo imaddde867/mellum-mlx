@@ -28,6 +28,12 @@ If it fails any gate: no new weights. The 6-bit card points 16 GB users to MXFP4
 
 Either way the research ends here. No extra seeds, no variants, no recalibration if the result is close. New ideas go to "Future work" below.
 
+## Outcome (2026-10-11)
+
+mxfp4-a8 tied MXFP4 on HumanEval+ (145 vs 144, p = 1.0) and passed size and memory, but decoded at 83–86% of MXFP4's speed on the M4. Gate 3 failed: no new weights. 16 GB users are pointed to MXFP4. Details in [RESULTS.md](RESULTS.md#final-experiment-mxfp4--8-bit-attention-not-shipped). Research closed.
+
+Deviation: the HumanEval+ run used the CUDA GPU instead of the Mac, once SSH access was available, so it pairs with the existing BF16 / 6-bit / MXFP4 runs under the identical frozen protocol. Gate 1 was judged against that MXFP4 run. The M4 gate ran on the Mac as planned.
+
 ## Then
 
 1. README and model card lead with the result, the download and a "which Mac" table. Caveats get their own section.

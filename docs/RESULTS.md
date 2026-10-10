@@ -175,3 +175,18 @@ The matched M4 hardware gate completed for calibrated C versus MXFP4 with Visual
 ## Gated 1e-7 diagnostic
 
 The [bounded diagnostic](research/DWQ_DIAGNOSTIC.md) completed 32 checkpointed updates from pristine C with the unchanged corpus and cached targets. Mean repeated validation losses at steps 0/8/16/24/32 were 0.104334/0.103514/0.104570/0.104949/0.106943. Step eight’s small apparent gain was below its repeat range and overlapped the initial measurements, so step zero won the frozen loss gate. Its saved weight hashes are identical to original C and fresh-process integrity passed. No development generation, reuse of the opened 12-task set, or Mac run followed. The next substantive question is representative reasoning/tool/chat calibration, not another learning-rate decimal on this corpus.
+
+## Final experiment: MXFP4 + 8-bit attention (not shipped)
+
+Pre-registered in [PLAN.md](PLAN.md) before running. Recipe M = randmaru's recipe (MXFP4 g32, 8-bit g64 routers) plus affine 8-bit g64 attention q/k/v/o, converted from pinned BF16 on the CUDA GPU (6,772,975,475 weight bytes; loads with stock MLX-LM 0.32.0; [validation receipt](../results/release-v1/mxfp4-a8-validation.json)).
+
+**HumanEval+** (same frozen protocol and CUDA GPU as the table above): 145/164 counting `plus_status` like the earlier rows. The EvalPlus summary prints 0.878 because HumanEval/92 passes the expanded tests but not the base tests (BF16 shows the same quirk). Paired versus MXFP4: 7 tasks only M, 6 only MXFP4, exact McNemar p = 1.0. Versus 6-bit: 5 vs 6, p = 1.0. Versus BF16: 1 vs 9, p = 0.02. Completion length 1.05x MXFP4 (Wilcoxon p = 0.11); 3 budget truncations; solved within 2,048 / 4,096 tokens: 97 / 140.
+
+**M4 16 GB** (same session, MXFP4 first, three measured trials after warmup, 256 output tokens; memory-pressure level 1 throughout, swap 1.36 → 1.71 GB):
+
+| | Decode tok/s 1K / 4K / 16K | TTFT s 1K / 4K / 16K | MLX peak at 16K |
+| --- | ---: | ---: | ---: |
+| MXFP4 | 65.7 / 64.2 / 57.1 | 1.55 / 6.64 / 31.6 | 7.19 GB |
+| M | 55.0 / 53.1 / 49.0 | 1.64 / 7.04 / 31.7 | 7.51 GB |
+
+**Verdict: not shipped.** Quality tied MXFP4, size and memory passed, but decode reached only 84 / 83 / 86% of MXFP4 against the 90% gate. Attention is roughly 0.6B of the ~2.5B parameters read per decoded token, so doubling its bits costs bandwidth on every token and bought no measurable quality. Raw files: [results/release-v1/](../results/release-v1/).

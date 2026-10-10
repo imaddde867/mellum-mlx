@@ -22,7 +22,7 @@ JetBrains' Mellum2.1 Thinking (12B MoE, 2.5B active) converted to native MLX 6-b
 
 164 HumanEval+ tasks (expanded tests), same RTX 5090, same prompts, upstream chat template, greedy decoding, 8,192 completion tokens, pinned EvalPlus container. One sample per task.
 
-| Candidate | Weights | HumanEval+ | Solved within 4,096 tokens | Median completion tokens | Reasoning length vs BF16 (paired) |
+| Candidate | Weights | HumanEval+ | Solved within 4,096 tokens | Median completion tokens | Completion length vs BF16 (paired) |
 |---|---:|---:|---:|---:|---:|
 | BF16 original | 24.3 GB | 153/164 (93.3%) | 148 | 1,571 | 1.00x |
 | **This 6-bit** | **9.87 GB** | **146/164 (89.0%)** | **141** | **1,521** | **1.04x** |
@@ -32,7 +32,7 @@ JetBrains' Mellum2.1 Thinking (12B MoE, 2.5B active) converted to native MLX 6-b
 How to read this:
 - 6-bit and MXFP4 are statistically tied: 9 tasks passed only 6-bit, 7 only MXFP4 (exact McNemar p = 0.80). This card does not claim 6-bit is better than MXFP4.
 - Both are measurably below BF16 (6-bit: 1 vs 8 discordant tasks, p = 0.039).
-- Both keep BF16's reasoning length. Our plain affine 4-bit did not: it reasoned 2.2x longer on the same tasks and ran out of budget mid-thought on 18. That is why it isn't released. The cause is under investigation.
+- Both keep BF16's completion length. Our plain affine 4-bit did not: its completions, mostly reasoning, were 2.2x longer on the same tasks and ran out of budget mid-thought on 18. That is why it isn't released. The cause is not established.
 - These are single-run regression results. Training overlap with HumanEval+ is possible. They do not measure agent reliability.
 
 Raw responses, per-task outcomes, provenance and scripts: [github.com/imaddde867/mellum-mlx](https://github.com/imaddde867/mellum-mlx).
@@ -40,7 +40,7 @@ Raw responses, per-task outcomes, provenance and scripts: [github.com/imaddde867
 ## Which Mac
 
 - **24 GB unified memory or more: recommended.**
-- **16 GB: not recommended.** Measured MLX peak: 10.31 GB at 4K and 10.51 GB at 16K. Swap used: 282.81 MB before the 6-bit sequence, 1,947.31 MB before 16K and 1,883.31 MB after 16K. Swap grew materially across the overall sequence, but decreased during the sampled 16K stage. Editor-open status was not recorded.
+- **16 GB: use [randmaru's MXFP4](https://huggingface.co/randmaru/Mellum2.1-12B-A2.5B-Thinking-mlx-mxfp4) instead (6.46 GB, 87.8% HumanEval+ in the table above, a statistical tie with this model).** On the same M4 it decoded at 67.3 / 64.5 / 58.4 tok/s at 1K / 4K / 16K (separate sequential run). This 6-bit is not recommended on 16 GB. Measured MLX peak: 10.31 GB at 4K and 10.51 GB at 16K. Swap used: 282.81 MB before the 6-bit sequence, 1,947.31 MB before 16K and 1,883.31 MB after 16K. Swap grew materially across the overall sequence, but decreased during the sampled 16K stage. Editor-open status was not recorded.
 - Apple M4 (16 GB), warmup excluded, three measured trials: decode **48.0 / 47.1 / 43.5 tok/s**, TTFT **1.609 / 7.099 / 32.450 s** at **1K / 4K / 16K**, respectively. Greedy decoding, 256 output tokens, AC power.
 - Long context is cheap on memory. 21 of 28 layers use a 1,024-token sliding window, so the KV cache is about 14 KB per token (about 0.5 GB at 32K).
 
@@ -64,7 +64,7 @@ python -m mlx_lm server --model imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit-g
 
 ## Known issues with MLX-LM 0.32.0 serving
 
-- **Tool calls that fail to parse are dropped silently.** That covers invalid JSON, and also valid-looking JSON with a literal newline inside a string. The response still says `finish_reason: "tool_calls"` but `tool_calls` is empty, so agents can't see or repair the mistake. In our trials this happened twice, both times from an unescaped quote in code. A tested patch that returns the failed call text to the client is in the GitHub repo.
+- **Tool calls that fail to parse are dropped silently.** That covers invalid JSON, and also valid-looking JSON with a literal newline inside a string. The response still says `finish_reason: "tool_calls"` but `tool_calls` is empty, so agents can't see or repair the mistake. In our trials this happened twice, both times from an unescaped quote in code. A tested patch that returns the failed call text to the client is in the GitHub repo; an equivalent upstream fix is open as [mlx-lm#1957](https://github.com/ml-explore/mlx-lm/pull/1957).
 - **Reasoning isn't returned to the template.** Mellum's template replays prior reasoning in tool loops only from `reasoning_content`. The server returns it as `reasoning`. Clients that echo assistant messages back unchanged lose the model's earlier thinking between tool steps.
 
 ## Repository-agent trial (one repo, not a reliability claim)

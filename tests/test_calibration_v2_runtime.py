@@ -224,3 +224,41 @@ class RestartTests(unittest.TestCase):
             with self.assertRaises(ValueError):m.load_restart(root/'step-003',{'test':'different'},'U')
             with (root/'step-003'/'state.safetensors').open('ab') as out:out.write(b'corrupt')
             with self.assertRaises(ValueError):m.load_restart(root/'step-003',{'test':'fixed'},'U')
+
+class ExploratoryTests(unittest.TestCase):
+    def test_exploratory_authorization_rejects_resume_risk_omission_and_changed_bindings(self):
+        import calibration_v2_runtime as m
+        self.assertTrue(callable(getattr(m,'check_exploratory',None)), 'exploratory authorization missing')
+        refs={'runtime':'old-amendment','data':'fixed'};runtime={'MLX_USE_CUDA_GRAPHS':'1'}
+        p={'version':'calibration-v2-exploratory-1.0','bindings':refs,'runtime':runtime,
+           'historical_qualification_status':'failed','execution':{'attempts_per_arm':1,'resume':False,'maximum_updates':128},
+           'risks':['recomputed_gradient_variability','unresolved_numerical_cause','limited_memory_headroom','requires_independent_replication']}
+        m.check_exploratory(p,refs,runtime,None)
+        with self.assertRaises(ValueError):m.check_exploratory(p,refs,runtime,Path('restart/step-1'))
+        for bad in [{**p,'bindings':{}},{**p,'historical_qualification_status':'complete'},
+                    {**p,'risks':[]},{**p,'execution':{**p['execution'],'resume':True}}]:
+            with self.assertRaises(ValueError):m.check_exploratory(bad,refs,runtime,None)
+        with self.assertRaises(ValueError):m.check_qualification({'status':'failed','bindings':refs,'runtime':runtime,'updates':0},refs,runtime)
+
+    def test_exploratory_selection_requires_complete_uninterrupted_new_arms(self):
+        import calibration_v2_runtime as m
+        self.assertTrue(callable(getattr(m,'check_exploratory_arms',None)), 'exploratory arm validation missing')
+        expected={'source':'C'};order=['one','two']
+        arms={a:{'arm':a,'bindings':expected,'mode':'exploratory','exploratory_protocol_sha256':'new',
+                 'historical_qualification_status':'failed','status':'complete','updates':128,
+                 'update_order':order,'uninterrupted':True} for a in ('U','S')}
+        m.check_exploratory_arms(arms,expected,'new',order)
+        for change in [{'updates':7},{'resumed_checkpoint':'old'},{'mode':'qualified'},
+                       {'exploratory_protocol_sha256':'old'},{'uninterrupted':False}]:
+            changed={**arms,'U':{**arms['U'],**change}}
+            with self.assertRaises(ValueError):m.check_exploratory_arms(changed,expected,'new',order)
+
+    def test_exploratory_cli_resume_rejects_before_loading_model_or_creating_output(self):
+        import subprocess
+        with tempfile.TemporaryDirectory() as tmp:
+            output=Path(tmp)/'new-arm'
+            result=subprocess.run([sys.executable,'scripts/calibration_v2_runtime.py','train','--exploratory',
+                '--arm','U','--checkpoint','old/restart','--output',str(output)],capture_output=True,text=True)
+            self.assertEqual(result.returncode,2)
+            self.assertIn('uninterrupted train/select',result.stderr)
+            self.assertFalse(output.exists())

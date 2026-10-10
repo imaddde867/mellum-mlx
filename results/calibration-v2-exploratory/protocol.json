@@ -1,0 +1,297 @@
+{
+  "version": "calibration-v2-exploratory-1.0",
+  "parent_commit": "80f057b",
+  "frozen_utc": "2026-10-10T18:44:13.656798+00:00",
+  "question": "Does one uninterrupted matched U/S attempt under this exact numerically variable runtime produce a useful measurable fidelity improvement? Exploratory, not a definitive causal or reproducibility study.",
+  "historical_qualification_status": "failed",
+  "bindings": {
+    "runtime": "0244b89b8502636cd08eb6223c1ac21b0c1283ae62cc0d1f681751d50be5fe01",
+    "protocol": "9ee04ae8d1a1077edf4f495d742cd0e414d88d00609b6ca474890ee6897746a7",
+    "data": "ba0184c6cccd077cef402c07013678f9927de306c09823812f73a782ec9bd9f2",
+    "order": "c31facefce5c2bdcfe013ca6be7d2fcff9016495e22a24b2f4296a584b5503c1",
+    "targets": "35465a553c9bcfe616a9759c91032037778f668c0082d4c887a0ba121807d7ea",
+    "validation_targets": "77911ba07e11dd53c90952c06a6057609068f99c2f550b82be79133eec7e0633",
+    "source": "634fffaac11f5c946d7bf693b34b270b24a2873cd624ca871744039ee7c20197",
+    "tokenizer": "58548a346eb073e5132bf7d8ad17dc6971bca36ade378ca4d2bfbc49bf60da2a"
+  },
+  "runtime": {
+    "MLX_USE_CUDA_GRAPHS": "1",
+    "MLX_CUDA_GRAPH_CACHE_SIZE": "400",
+    "MLX_ENABLE_CACHE_THRASHING_CHECK": "0",
+    "allocator_cache_limit": 0,
+    "gradient_checkpoint": "installed upstream all 28 layers",
+    "mlx": "0.32.3"
+  },
+  "references": {
+    "qualification": "7a62a7ca0b56eec357f468e9204090d21e210220570f0dff6baa28a2c105df98",
+    "localization": "df8ec491d416c73a519e10c01882b7d7d8cb0681b7f96b788f13c38d72a220af",
+    "probe_U": "b5489418157ef19e879180fdf56ec882c9ca97e708cb4793158422fcb7d4d3fa",
+    "probe_S": "3ff6dbd7c3f282f4293e7fe78cf1dca15184d1a766cdee56dd04394f18131ec9",
+    "original_protocol": "9ee04ae8d1a1077edf4f495d742cd0e414d88d00609b6ca474890ee6897746a7"
+  },
+  "source_sha256": {
+    "scripts/calibration_v2_runtime.py": "da1c73802e259200b694c390817e2960b07132481cd2c9e3ef3481c7b15bbe30",
+    "scripts/calibration_v2_objective.py": "fac3b4904af51a565b5fea0da9c53b29470fe708cd172cb51441fc0557809811",
+    "scripts/calibration_v2_runtime_process.py": "e0eb6f01fd46e9f253f7c769e8fd7f54baa692be6b6f9bf89ea3ad090d08249b"
+  },
+  "risks": [
+    "recomputed_gradient_variability",
+    "unresolved_numerical_cause",
+    "limited_memory_headroom",
+    "requires_independent_replication"
+  ],
+  "evidence": {
+    "historical_failure": {
+      "relative_mean_gradient_l2": 0.1009983354517882,
+      "relative_mean_update_delta_l2": 0.18097560923507933,
+      "absolute_mean_loss_difference": 1.548975706100464e-05
+    },
+    "identical_gradient_replay": {
+      "masters": {
+        "exact": true,
+        "reference_l2": 1255.6915930079474,
+        "absolute_l2": 0.0,
+        "relative_l2": 0.0,
+        "max_absolute": 0.0
+      },
+      "adam": {
+        "exact": true,
+        "reference_l2": 25.10447012094449,
+        "absolute_l2": 0.0,
+        "relative_l2": 0.0,
+        "max_absolute": 0.0
+      },
+      "delta": {
+        "exact": true,
+        "reference_l2": 0.0013598386429772846,
+        "absolute_l2": 0.0,
+        "relative_l2": 0.0,
+        "max_absolute": 0.0
+      }
+    },
+    "resident_control": {
+      "actual": "resident-a",
+      "reference": "resident-b",
+      "absolute_mean_loss_difference": 0.0008888661861419789,
+      "exceeds_existing_limits": true,
+      "gradient": {
+        "reference_l2": 116.92406488387365,
+        "absolute_l2": 15.223927538849793,
+        "relative_l2": 0.1302035432480889,
+        "max_absolute": 1.4367187023162842,
+        "top_groups": [
+          {
+            "group": "model.embed_tokens",
+            "squared_error": 20.143664131112786,
+            "reference_squared": 392.4454593085065,
+            "error_fraction": 0.08691306290717582
+          },
+          {
+            "group": "model.layers.0.self_attn.o_proj",
+            "squared_error": 11.188160447321529,
+            "reference_squared": 345.50973258468764,
+            "error_fraction": 0.04827310892618198
+          },
+          {
+            "group": "model.layers.10.self_attn.o_proj",
+            "squared_error": 9.047009748664749,
+            "reference_squared": 559.6055845584483,
+            "error_fraction": 0.03903477154352726
+          }
+        ],
+        "top_tensors": [
+          {
+            "tensor": "model.embed_tokens.scales",
+            "squared_error": 20.129002259223196,
+            "reference_squared": 392.1801792141304,
+            "max_absolute": 1.4367187023162842
+          },
+          {
+            "tensor": "model.layers.0.self_attn.o_proj.scales",
+            "squared_error": 11.180088419434146,
+            "reference_squared": 345.26160310811383,
+            "max_absolute": 0.11835938692092896
+          },
+          {
+            "tensor": "model.layers.10.self_attn.o_proj.scales",
+            "squared_error": 9.040194050344493,
+            "reference_squared": 559.1797073047586,
+            "max_absolute": 0.06289063394069672
+          }
+        ],
+        "category_squared_error_fractions": {
+          "embedding": 0.08691306290717582,
+          "attention": 0.8599553352755746,
+          "other": 0.012426240835591485,
+          "expert_mlp": 0.04070536098165778
+        }
+      },
+      "delta": {
+        "reference_l2": 0.0013077680805058764,
+        "absolute_l2": 0.0002683111962212608,
+        "relative_l2": 0.20516726185691236,
+        "max_absolute": 1.6726554008528183e-07,
+        "top_groups": [
+          {
+            "group": "model.layers.5.mlp.switch_mlp.gate_proj",
+            "squared_error": 1.1688378032173889e-09,
+            "reference_squared": 1.8306877932373267e-08,
+            "error_fraction": 0.016235910863763282
+          },
+          {
+            "group": "model.layers.5.mlp.switch_mlp.up_proj",
+            "squared_error": 1.152381322689338e-09,
+            "reference_squared": 1.832852144859234e-08,
+            "error_fraction": 0.016007319736534832
+          },
+          {
+            "group": "model.layers.27.mlp.switch_mlp.gate_proj",
+            "squared_error": 1.0793727695385096e-09,
+            "reference_squared": 1.8965003106511576e-08,
+            "error_fraction": 0.014993183850455253
+          }
+        ],
+        "top_tensors": [
+          {
+            "tensor": "model.layers.5.mlp.switch_mlp.gate_proj.scales",
+            "squared_error": 5.887433121223619e-10,
+            "reference_squared": 9.197265313588215e-09,
+            "max_absolute": 1.5664845420815254e-07
+          },
+          {
+            "tensor": "model.layers.5.mlp.switch_mlp.gate_proj.biases",
+            "squared_error": 5.800944910950269e-10,
+            "reference_squared": 9.109612618785052e-09,
+            "max_absolute": 1.5497207073167374e-07
+          },
+          {
+            "tensor": "model.layers.5.mlp.switch_mlp.up_proj.scales",
+            "squared_error": 5.788043190557582e-10,
+            "reference_squared": 9.206044982168507e-09,
+            "max_absolute": 1.5776603845552017e-07
+          }
+        ],
+        "category_squared_error_fractions": {
+          "expert_mlp": 0.9632483501997495,
+          "other": 0.011508226572938113,
+          "attention": 0.02510979261719872,
+          "embedding": 0.00013363061011388642
+        }
+      }
+    },
+    "numerical_cause": "unresolved; no claim of correct/deterministic/unbiased/generally qualified backwards",
+    "memory": "prior fresh-process device samples left approximately 33 MB free; MLX allocator peak is not total VRAM",
+    "nvml": "availability check reported driver/library mismatch; MLX GPU eval and cudaMemGetInfo succeeded; no driver/package changes"
+  },
+  "execution": {
+    "attempts_per_arm": 1,
+    "resume": false,
+    "maximum_updates": 128
+  },
+  "arm_paths": {
+    "U": "work/calibration-v2-exploratory-U",
+    "S": "work/calibration-v2-exploratory-S"
+  },
+  "execution_timeout_s": 7200,
+  "order": [
+    "U",
+    "S"
+  ],
+  "gpu": "gpu-host CUDA device 0; sequential fresh processes",
+  "step_zero": "fresh five-repeat validation in each actual training process before update1",
+  "unchanged_training": {
+    "seed": 123,
+    "batch_size": 1,
+    "learning_rate": 1e-07,
+    "optimizer": "Adam",
+    "betas": [
+      0.9,
+      0.999
+    ],
+    "epsilon": 1e-08,
+    "bias_correction": true,
+    "maximum_updates_per_arm": 128,
+    "passes": 1,
+    "precision": "FP32 optimizer parameters/moments, BF16 model scales/biases, FP32 KL",
+    "eligible": "only affine scales/biases with bits<8; packed weights, routers, other tensors, schemas and tokenizer fixed",
+    "full_trajectory": true,
+    "truncation": false,
+    "padding": "none at batch one; objective tested with padding",
+    "checkpointing": "installed grad_checkpoint on first layer wraps all 28 layers of that type; one installation per process",
+    "detached_cache_training": false
+  },
+  "validation": {
+    "steps": [
+      0,
+      8,
+      32,
+      64,
+      96,
+      128
+    ],
+    "repeats": 5,
+    "model_mode": "eval; checkpoint wrapper installed; full contexts in preserved-cache 128-token inference chunks, identical to v2 eval protocol",
+    "primary": "assistant-only token-weighted FP32 KL",
+    "secondary": [
+      "reasoning",
+      "transition",
+      "final",
+      "tool_call",
+      "context",
+      "whole transcript"
+    ],
+    "family_summary": "token-weighted assistant/context/whole plus each region per underlying validation family; also unweighted family mean for reporting",
+    "reference": "five pristine-C repeats at U step zero and five at S step zero; every candidate must pass separately against BOTH references",
+    "gain": "candidate max < reference min AND reference mean minus candidate mean > max(reference range,candidate range)",
+    "no_region_regression": "reject if any assistant-region candidate min > reference max AND mean increase > both ranges; context tradeoffs reported but not hidden in a gate",
+    "screen": "empirical engineering rule, not confidence intervals; no claim of independent related variants"
+  },
+  "selection": {
+    "within_arm": "lowest assistant mean among checkpoints that pass against both pristine references; ties earlier step",
+    "across_arms": "if only one passes choose it; if both pass S must pass the same fidelity gate against best U, otherwise choose U; no candidate if neither passes",
+    "reload": "fresh process, five identical validation forwards; must pass both original pristine references with no assistant-region regression; failure stops behavior without fallback selection",
+    "reserve": "contents not loaded until candidate locked and reload fidelity/integrity passed"
+  },
+  "behavior_if_permitted": {
+    "version": "calibration-v2-reserved-1.0",
+    "models": [
+      "one locked candidate",
+      "pristine C",
+      "pinned MXFP4"
+    ],
+    "order": "reserved JSONL order, same for all three",
+    "prompt": "original task contract, named entry point, original supplied assertions; ask edit_file task.py, run_tests, then final full code",
+    "tools": "existing calibration-v2 strict read_file/edit_file/run_tests schemas; virtual workspace, sandbox for execution; final oracle always original assertions",
+    "serving": "existing loopback MLX-LM server, concurrency one, prefill 512, upstream thinking/template parser",
+    "sampling": "greedy, temperature zero, seed zero",
+    "completion_budget_total_per_task": 8192,
+    "max_responses_per_task": 4,
+    "budget": "aggregate across reasoning and all tool/final responses, no retries after task failure",
+    "measure": [
+      "executable correctness",
+      "strict call/schema validity",
+      "truncation",
+      "completion tokens",
+      "generation elapsed including failed/truncated attempts"
+    ],
+    "candidate_locked_before_reserved": true,
+    "post_eval_tuning": false,
+    "limitation": "original provided assertions only; not comprehensive hidden correctness tests"
+  },
+  "checkpoint_policy": "existing atomic rolling state after each completed update, exact host serialized readback, latest two retained; scheduled model-selection parameters separately; evidence only, no resume in this comparison",
+  "failure": "CUDA/OOM/nonfinite/integrity/binding/corruption failure exits affected process; metadata only afterward. No array inspection/save after CUDA exception. No automatic resume/restart/extra epoch/retry.",
+  "interpretation": "Any gain is provisional. One favorable outcome cannot establish objective superiority because variability affects optimization trajectories. Require independent predeclared training replication before promotion; no replication here. Negative result applies only to this exact attempt.",
+  "forbidden": [
+    "alter historical qualification",
+    "relax tolerances",
+    "numerical-localization rerun",
+    "training replication",
+    "runtime flags or packages change",
+    "dataset expansion",
+    "quantization recipe",
+    "M4",
+    "HumanEval+",
+    "uploads",
+    "push"
+  ]
+}

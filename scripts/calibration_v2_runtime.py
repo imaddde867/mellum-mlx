@@ -19,6 +19,7 @@ ROOT=Path('results/calibration-v2-restart-repair')
 INSPECTION=Path('results/calibration-v2-runtime/runtime-inspection.json')
 RUNTIME={'MLX_USE_CUDA_GRAPHS':'1','MLX_CUDA_GRAPH_CACHE_SIZE':'400','MLX_ENABLE_CACHE_THRASHING_CHECK':'0'}
 AMENDMENT=ROOT/'amendment.json'
+EXPLORATORY=Path('results/calibration-v2-exploratory/protocol.json')
 
 
 def require_runtime(before_import=False):
@@ -376,6 +377,50 @@ def check_qualification(receipt,expected,runtime):
         raise ValueError('Training lacks matching successful runtime qualification')
 
 
+def check_exploratory(protocol,expected,current_runtime,checkpoint):
+    risks={'recomputed_gradient_variability','unresolved_numerical_cause','limited_memory_headroom','requires_independent_replication'}
+    if checkpoint is not None:raise ValueError('Exploratory execution cannot resume')
+    if protocol.get('version')!='calibration-v2-exploratory-1.0' or protocol.get('bindings')!=expected or protocol.get('runtime')!=current_runtime:
+        raise ValueError('Exploratory protocol binding mismatch')
+    if protocol.get('historical_qualification_status')!='failed' or set(protocol.get('risks',[]))!=risks:
+        raise ValueError('Exploratory outstanding risks missing')
+    if protocol.get('execution')!={'attempts_per_arm':1,'resume':False,'maximum_updates':128}:
+        raise ValueError('Exploratory execution budget changed')
+
+
+def exploratory_authorization(expected,checkpoint=None):
+    protocol=json.loads(EXPLORATORY.read_text())
+    check_exploratory(protocol,expected,require_runtime(),checkpoint)
+    references={'qualification':ROOT/'qualification.json',
+        'localization':Path('results/calibration-v2-restart-localize/summary.json'),
+        'probe_U':ROOT/'probe-U/receipt.json','probe_S':ROOT/'probe-S/receipt.json',
+        'original_protocol':base.PROTOCOL}
+    if set(protocol['references'])!=set(references):raise ValueError('Exploratory evidence references missing')
+    for name,path in references.items():
+        if sha256(path)!=protocol['references'][name]:raise ValueError('Exploratory referenced evidence changed')
+    failed=json.loads(references['qualification'].read_text())
+    if failed['status']!='failed' or failed['bindings']!=expected:raise ValueError('Historical failed qualification changed')
+    for arm in ('U','S'):
+        probe=json.loads(references['probe_'+arm].read_text())
+        if probe['status']!='complete' or probe['bindings']!=expected or probe['runtime']!=require_runtime():raise ValueError('Reused sequence checks changed')
+    sources={'scripts/calibration_v2_runtime.py','scripts/calibration_v2_objective.py','scripts/calibration_v2_runtime_process.py'}
+    if set(protocol['source_sha256'])!=sources:raise ValueError('Exploratory executed sources missing')
+    for filename,digest in protocol['source_sha256'].items():
+        if sha256(Path(filename))!=digest:raise ValueError('Exploratory executed source changed')
+    return {'mode':'exploratory','exploratory_protocol_sha256':sha256(EXPLORATORY),
+        'qualification_sha256':sha256(references['qualification']),'historical_qualification_status':'failed',
+        'risks':protocol['risks'],'uninterrupted':True},protocol['arm_paths']
+
+
+def check_exploratory_arms(arms,expected,protocol,order):
+    if set(arms)!={'U','S'}:raise ValueError('Missing exploratory arm')
+    for arm,r in arms.items():
+        if r.get('arm')!=arm or r.get('bindings')!=expected or r.get('mode')!='exploratory' or r.get('exploratory_protocol_sha256')!=protocol or r.get('historical_qualification_status')!='failed':
+            raise ValueError('Exploratory arm binding mismatch')
+        if r.get('status')!='complete' or r.get('updates')!=128 or r.get('update_order')!=order or r.get('uninterrupted') is not True or 'resumed_checkpoint' in r:
+            raise ValueError('Exploratory matched arms incomplete or resumed')
+
+
 def resume_cursor(receipt,order,qualification):
     cursor=receipt['cursor']
     if not isinstance(cursor,int) or cursor<1 or cursor>len(order) or receipt.get('update_order')!=order[:cursor] or receipt.get('qualification_sha256')!=qualification:
@@ -387,13 +432,17 @@ def train_arm(args):
     import mlx.core as mx
     from mlx.utils import tree_map,tree_flatten
     expected=bindings();qualification_path=ROOT/'qualification.json'
-    qualified=json.loads(qualification_path.read_text())
-    check_qualification(qualified,expected,require_runtime())
-    paths=json.loads(AMENDMENT.read_text())['replacement_arms']
+    if getattr(args,'exploratory',False):
+        authorization,paths=exploratory_authorization(expected,args.checkpoint)
+    else:
+        qualified=json.loads(qualification_path.read_text())
+        check_qualification(qualified,expected,require_runtime())
+        paths=json.loads(AMENDMENT.read_text())['replacement_arms']
+        authorization={'mode':'qualified','qualification_sha256':sha256(qualification_path)}
     if args.output!=Path(paths[args.arm]):raise ValueError('Replacement training path mismatch')
     _,rows,valid,order=base.corpus();by_id={r['id']:r for r in rows}
     report=execution_receipt(args.arm)
-    report.update(qualification_sha256=sha256(qualification_path),evaluations={},update_order=[])
+    report.update(**authorization,evaluations={},update_order=[])
     resume=args.checkpoint
     if resume is None:args.output.mkdir(parents=True,exist_ok=False)
     elif resume.parent!=args.output/'restart':raise ValueError('Restart is outside the arm rolling store')
@@ -417,19 +466,22 @@ def train_arm(args):
         model.train()
         for step,ident in enumerate(order[cursor:],cursor+1):
             begin=time.monotonic();row=by_id[ident]
+            memory_boundary(report,'before-training-backward',step)
             loss,grads=backward(model,params,row,args.arm);gradient=base.gradient_receipt(loss,grads)
             params=opt.apply_gradients(grads,params);mx.eval(params,opt.state)
-            model.update(tree_map(lambda x:x.astype(mx.bfloat16),params));mx.eval(model.trainable_parameters())
             report['updates']=step;report['update_order'].append(ident)
+            report['active_boundary']={'phase':'optimizer-update-materialized','repeat':step}
+            model.update(tree_map(lambda x:x.astype(mx.bfloat16),params));mx.eval(model.trainable_parameters())
             del grads,loss;mx.clear_cache()
             # Publish a verified restart before another backward or validation transition.
             checkpoint=save_restart(args.output/'restart',params,opt,
-                {'arm':args.arm,'cursor':step,'bindings':expected,'qualification_sha256':report['qualification_sha256'],
+                {'arm':args.arm,'cursor':step,'bindings':expected,**authorization,
                  'update_order':list(report['update_order']),'evaluations':dict(report['evaluations'])})
             receipt={'id':ident,'step':step,'arm':args.arm,**gradient,
                 'included_targets':sum(base.target_mask(row,args.arm)),
                 'elapsed_s':time.monotonic()-begin,'mlx_peak_bytes':mx.get_peak_memory(),
-                'device_memory':device_memory(),'restart':checkpoint['files_sha256']}
+                'device_memory':device_memory(),'mlx_active_bytes':mx.get_active_memory(),
+                'mlx_cached_bytes':mx.get_cache_memory(),'restart':checkpoint['files_sha256']}
             write_new(args.output/'updates'/f'{step:03d}.json',receipt);print(json.dumps(receipt),flush=True)
             if step in (8,32,64,96,128):
                 mx.save_safetensors(args.output/f'step-{step}-parameters.safetensors',dict(tree_flatten(params)))
@@ -447,15 +499,22 @@ def train_arm(args):
 
 
 def select(args):
-    paths={'U':args.u,'S':args.s};declared=json.loads(AMENDMENT.read_text())['replacement_arms']
+    exploratory=getattr(args,'exploratory',False)
+    paths={'U':args.u,'S':args.s}
+    declared=json.loads(EXPLORATORY.read_text())['arm_paths'] if exploratory else json.loads(AMENDMENT.read_text())['replacement_arms']
     if any(path!=Path(declared[arm]) for arm,path in paths.items()):raise ValueError('Selection path mismatch')
     arms={a:json.loads((p/'receipt.json').read_text()) for a,p in paths.items()}
     _,_,_,order=base.corpus();expected=bindings();qualification_path=ROOT/'qualification.json'
-    check_qualification(json.loads(qualification_path.read_text()),expected,require_runtime())
-    check_replacement(arms,expected,sha256(qualification_path),order)
+    if exploratory:
+        authorization,_=exploratory_authorization(expected)
+        check_exploratory_arms(arms,expected,authorization['exploratory_protocol_sha256'],order)
+    else:
+        check_qualification(json.loads(qualification_path.read_text()),expected,require_runtime())
+        check_replacement(arms,expected,sha256(qualification_path),order)
+        authorization={'mode':'qualified','qualification_sha256':sha256(qualification_path)}
     if arms['U']['parent']['weights_sha256']!=arms['S']['parent']['weights_sha256']:raise ValueError('Pristine parents differ')
     decision=base.experiment_decision(arms)
-    decision.update(bindings=expected,qualification_sha256=sha256(qualification_path),
+    decision.update(bindings=expected,**authorization,
         arm_paths={a:str(p) for a,p in paths.items()},
         arm_receipt_sha256={a:sha256(p/'receipt.json') for a,p in paths.items()})
     write_new(args.output,decision)
@@ -507,8 +566,11 @@ def main():
     parser.add_argument('stage',choices=['correctness','probe','restart-produce','restart-restore','qualification','train','select'])
     parser.add_argument('--arm',choices=['U','S']);parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--checkpoint',type=Path)
+    parser.add_argument('--exploratory',action='store_true',help='Use the separate frozen exploratory authorization; no resume')
     parser.add_argument('--u',type=Path);parser.add_argument('--s',type=Path)
-    args=parser.parse_args();require_runtime(before_import=True);verify_runtime_files()
+    args=parser.parse_args()
+    if args.exploratory and (args.stage not in ('train','select') or args.checkpoint is not None):parser.error('Exploratory mode permits uninterrupted train/select only')
+    require_runtime(before_import=True);verify_runtime_files()
     if args.output.exists() and not (args.stage=='train' and args.checkpoint is not None):parser.error('Refusing existing evidence directory')
     if args.stage=='correctness':
         report=execution_receipt();report['protocol_sha256']=sha256(base.PROTOCOL)

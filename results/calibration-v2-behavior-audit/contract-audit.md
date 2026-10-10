@@ -1,0 +1,16 @@
+# Historical contract and failure audit
+
+The original protocol requires a complete final Python source answer, not merely a passing tool result. Each task has 8,192 aggregate completion tokens and at most four assistant responses. The tools have a fixed virtual `task.py` state. `read_file` returns that state, `edit_file` replaces it, and `run_tests` executes the model-supplied checks with sanitized workspace source in the pinned sandbox. The final oracle always executes the original assertions against final response content. No missing-final score is changed by this audit.
+
+Compatibility checks cover all 96 initial prompts, every request's tools/greedy settings, budgets, process runtime settings, model bindings and frozen task order. The sandbox replay separately checks intermediate results, original assertions against each tested workspace, the last workspace and the final output. An intermediate passing check is not evidence of final correctness: checks may differ from the original assertions, define another implementation or miss a later final-copy error.
+
+The response cap matches the frozen protocol. Read/edit/test/read uses all four responses, so the fourth read cannot be followed by a final. This is a protocol pressure point, not a demonstrated off-by-one implementation error. The first read often repeats source already supplied in the prompt, but it can be a reasonable model action. The report distinguishes exact identical calls on unchanged workspace from reads after a passing tool test; neither count proves all repetition is pathological.
+
+Two concrete interface limitations are preserved:
+
+* The tool describes a task module, but the sandbox executes source into a namespace without creating an importable `task` module. MXFP4's `from task import convolve_valid` fails with `ModuleNotFoundError`; its follow-up switches to inline source and consumes another response. The pinned integration regression records this behavior. Fixing it would change the historical execution environment, so both controls use the same unchanged sandbox.
+* The pinned server's tool formatter logs and drops malformed tool JSON. It can still report `finish_reason="tool_calls"` with no parsed calls. The harness treats any no-call response as terminal final content; whitespace is truthy and therefore historically `final_present=True`, although it contains no final source and fails the oracle. MXFP4 tasks 2 and 20 demonstrate this combination; task 0 has a parser warning on a length-limited response. The regression and audit preserve both historical presence and substantive presence. The server did not retain raw rejected tool text, so the audit cannot reconstruct malformed calls or count them as valid.
+
+Neither limitation rescues historical correctness. No harness or server change is applied to the new controls. No extra responses, changed final extraction, retries or budget increases are allowed. These opened tasks are diagnostic/regression material, not an untouched future selection set.
+
+Tests cover missing-final scoring, shared token-budget accounting, preserved state replay, the empty-tool termination, and the real pinned sandbox import failure. No code is executed outside the isolated sandbox.

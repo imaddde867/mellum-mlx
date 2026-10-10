@@ -39,10 +39,19 @@ Raw responses, per-task outcomes, provenance and scripts: [github.com/imaddde867
 
 ## Which Mac
 
-- **24 GB unified memory or more: recommended.**
-- **16 GB: use [randmaru's MXFP4](https://huggingface.co/randmaru/Mellum2.1-12B-A2.5B-Thinking-mlx-mxfp4) instead (6.46 GB, 87.8% HumanEval+ in the table above, a statistical tie with this model).** On the same M4 it decoded at 67.3 / 64.5 / 58.4 tok/s at 1K / 4K / 16K (separate sequential run). This 6-bit is not recommended on 16 GB. Measured MLX peak: 10.31 GB at 4K and 10.51 GB at 16K. Swap used: 282.81 MB before the 6-bit sequence, 1,947.31 MB before 16K and 1,883.31 MB after 16K. Swap grew materially across the overall sequence, but decreased during the sampled 16K stage. Editor-open status was not recorded.
-- Apple M4 (16 GB), warmup excluded, three measured trials: decode **48.0 / 47.1 / 43.5 tok/s**, TTFT **1.609 / 7.099 / 32.450 s** at **1K / 4K / 16K**, respectively. Greedy decoding, 256 output tokens, AC power.
+Measured on a 14-inch MacBook Pro, M4, 16 GB. This 6-bit and MXFP4 ran back to back in one session: greedy decoding, 256 output tokens, mean of three trials after warmup.
+
+| | Decode tok/s 1K / 4K / 16K | TTFT at 16K | MLX peak at 16K |
+|---|---:|---:|---:|
+| This 6-bit | 47.2 / 46.0 / 42.8 | 32.7 s | 10.51 GB |
+| [randmaru MXFP4](https://huggingface.co/randmaru/Mellum2.1-12B-A2.5B-Thinking-mlx-mxfp4) | 66.7 / 63.6 / 57.4 | 31.6 s | 7.19 GB |
+
+- **Most people should use MXFP4.** It ties this model on HumanEval+, decodes 34–41% faster and fits a 16 GB Mac comfortably.
+- **Use this 6-bit** if you have 24 GB or more and want the quantization closest to BF16 (BF16 solved 8 tasks it missed, versus 10 for MXFP4). That edge is not statistically significant.
+- **16 GB: not recommended.** Swap grew from 1.6 to 4.1 GB during the 6-bit run.
 - Long context is cheap on memory. 21 of 28 layers use a 1,024-token sliding window, so the KV cache is about 14 KB per token (about 0.5 GB at 32K).
+
+Why quantization format matters for this reasoning model: [write-up](https://github.com/imaddde867/mellum-mlx/blob/main/docs/WRITEUP.md).
 
 ## Use it
 

@@ -190,3 +190,7 @@ Pre-registered in [PLAN.md](PLAN.md) before running. Recipe M = randmaru's recip
 | M | 55.0 / 53.1 / 49.0 | 1.64 / 7.04 / 31.7 | 7.51 GB |
 
 **Verdict: not shipped.** Quality tied MXFP4, size and memory passed, but decode reached only 84 / 83 / 86% of MXFP4 against the 90% gate. Attention is roughly 0.6B of the ~2.5B parameters read per decoded token, so doubling its bits costs bandwidth on every token and bought no measurable quality. Raw files: [results/release-v1/](../results/release-v1/).
+
+**Paired 6-bit rerun on the M4** (released artifact, checksums verified against its receipt; 6-bit then MXFP4 back to back): decode 47.2 / 46.0 / 42.8 vs 66.7 / 63.6 / 57.4 tok/s at 1K / 4K / 16K; MLX peak at 16K 10.51 vs 7.19 GB; TTFT at 16K 32.7 vs 31.6 s. Swap grew from 1.62 to 4.10 GB during the 6-bit 1K stage and stayed near 3.9 GB; pressure level stayed 1. This replaces the earlier unpaired comparison for recommendation purposes. MXFP4 is the default pick; 6-bit remains the closest-to-BF16 option for Macs with memory to spare.
+
+Provenance note: the candidate's RTX 5090 run happened after an unattended NVIDIA driver update (kernel module 595.91 vs NVML library 595.99; `nvidia-smi` fails, MLX CUDA works). The earlier BF16 / 6-bit / MXFP4 runs predate it. Same GPU, different driver stack. The verdict was decided by the Mac speed gate and holds either way.

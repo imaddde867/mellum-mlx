@@ -37,7 +37,7 @@ On a laptop, tokens are time. At 50–65 tokens/s on an M4, an extra 1,700 token
 
 **Calibration (DWQ): no.** A bounded distillation run on scales and biases made held-out loss worse and didn't change task results beyond noise.
 
-In the end I shipped the [6-bit](https://huggingface.co/imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit-g64) (146/164, 9.9 GB) for 24 GB+ Macs. For 16 GB Macs I point people to the existing MXFP4 conversion and don't publish a near-duplicate.
+Where that leaves my own release: the [6-bit](https://huggingface.co/imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit-g64) (146/164, 9.9 GB) loses the fewest tasks to BF16. MXFP4 ties it, though, and on the same M4 session it decoded 41% faster at 1K context (66.7 vs 47.2 tok/s) using 3.3 GB less memory. For most people the existing MXFP4 conversion is the better download, and the repository says so. I didn't publish a near-duplicate of it.
 
 ## Limits
 

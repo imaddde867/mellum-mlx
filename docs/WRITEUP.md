@@ -25,11 +25,19 @@ So at this size the quality loss mostly shows up as a slower path to the answer.
 
 ## Why it matters for local models
 
-On a laptop, tokens are time. At about 45 tokens/s on an M4, an extra 1,700 tokens is 40 seconds per answer. A quantization that keeps its score with a generous budget can still be much worse to use. If you quantize a reasoning model, report completion length, or pass@budget, next to accuracy.
+On a laptop, tokens are time. At 50–65 tokens/s on an M4, an extra 1,700 tokens is roughly half a minute per answer. A quantization that keeps its score with a generous budget can still be much worse to use. If you quantize a reasoning model, report completion length, or pass@budget, next to accuracy.
 
-## What fixed it
+## What helped and what didn't
 
-<!-- RESULT: filled in after the mxfp4-a8 run -->
+**The expert format.** MXFP4 stores each block of 32 weights as 4-bit floats with one shared 8-bit exponent. It comes out *smaller* than affine 4-bit with group 64 (6.5 vs 6.8 GB) and keeps BF16's reasoning length. Most of this model's weights sit in its 64 experts, and how those are rounded matters more than any other choice I tested.
+
+**Attention precision, on top of a bad base.** Keeping attention at 6-bit on top of affine 4-bit experts recovered most of the loss on a 24-task screen. It only tied MXFP4 (22 vs 21 tasks), was 10% larger, and took 24% longer to generate.
+
+**Attention precision, on top of a good base: no.** My last experiment kept MXFP4 experts and moved attention to 8-bit (6.8 GB). I wrote the ship rule down before running it. It scored 145/164 against MXFP4's 144 (7 vs 6 discordant tasks, p = 1.0), a tie. On the M4 it decoded 14–17% slower. In a 2.5B-active MoE, attention is about a quarter of the weights read for every generated token, so extra attention bits cost speed on every token whether or not they buy accuracy. It failed the speed gate, so I didn't ship it.
+
+**Calibration (DWQ): no.** A bounded distillation run on scales and biases made held-out loss worse and didn't change task results beyond noise.
+
+In the end I shipped the [6-bit](https://huggingface.co/imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit-g64) (146/164, 9.9 GB) for 24 GB+ Macs. For 16 GB Macs I point people to the existing MXFP4 conversion and don't publish a near-duplicate.
 
 ## Limits
 

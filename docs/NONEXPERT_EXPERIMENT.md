@@ -1,5 +1,7 @@
 # Mixed non-expert precision experiment
 
+The proposed follow-up has now been implemented and measured in the [group-32 and DWQ experiment](REFINEMENT_EXPERIMENT.md). This report preserves the first sprint’s measurements and decision.
+
 Completed 2026-10-09 on the RTX 5090. **No candidate promoted.** Attention restoration helped the native affine 4-bit baseline on this screen, but none demonstrated a credible improvement over the pinned MXFP4 competitor. These are CUDA results, not M4 performance.
 
 Original source: `JetBrains/Mellum2.1-12B-A2.5B-Thinking` at `92ddae9fc7665e9f801d141d2e5a6b2caf2460c4`. External comparator: `randmaru/Mellum2.1-12B-A2.5B-Thinking-mlx-mxfp4` at `4ce0d28df07dfa4ed28077e5b718e866be2cf4cf`; its weight SHA-256 is `b6224c8ea3e32190acc1500ce513d39263be257c6c71a10a31e832c045d2cb9a`. The existing 5090 environment and downloads were reused. Unrelated local work and the previous pilot's evidence were preserved; that pilot had finished before these conversions began.

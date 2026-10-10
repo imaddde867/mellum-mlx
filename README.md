@@ -60,7 +60,7 @@ See [the research and experiment plan](docs/PLAN.md) and [measurement notes](doc
 
 - Model: [JetBrains/Mellum2.1-12B-A2.5B-Thinking](https://huggingface.co/JetBrains/Mellum2.1-12B-A2.5B-Thinking), revision `92ddae9fc7665e9f801d141d2e5a6b2caf2460c4`, Apache-2.0. JetBrains created and trained the model.
 - Runtime: [MLX-LM](https://github.com/ml-explore/mlx-lm), tested package `0.32.0`; [MLX](https://github.com/ml-explore/mlx), `0.32.3`.
-- Quantization: affine group size 64; 4 or 6 bits for eligible weights, native 8-bit Mellum routers, remaining weights BF16. Router protection is upstream behaviour, not a novel method introduced here.
+- Quantization: native affine group size 64; 4 or 6 bits for eligible weights, native 8-bit Mellum routers, remaining weights BF16. Experimental mixed recipes restore selected non-expert weights to 6-bit; D uses group 32 only for expert down-projections. Router protection is upstream behaviour, not a novel method introduced here.
 - External comparator: [randmaru MXFP4](https://huggingface.co/randmaru/Mellum2.1-12B-A2.5B-Thinking-mlx-mxfp4), revision `4ce0d28df07dfa4ed28077e5b718e866be2cf4cf`. Credit belongs to its publisher.
 - This repository's original scripts: MIT. The MIT license does not relicense JetBrains' weights or third-party code.
 
@@ -74,4 +74,8 @@ python scripts/dwq_pilot.py train
 
 This performs one update on separate authored pilot data. It tests compatibility, not quality improvement. An initial save/reload discrepancy was not reproduced on the instrumented repeat and remains unresolved; see the measurement notes. Do not publish the pilot as a tuned model.
 
-The first [mixed non-expert precision experiment](docs/NONEXPERT_EXPERIMENT.md) is complete: three BF16-origin recipes below 7.5 GB, integrity gates, and a frozen 24-task CUDA coding screen. Attention restoration improved the weak native 4-bit baseline, but no candidate earned promotion over pinned MXFP4. Candidate C passed 22/24 versus MXFP4 21/24, while taking 23.7% more generation time and using 9.9% more weight bytes. No candidate HumanEval+ or M4 validation was run.
+The first [mixed non-expert precision experiment](docs/NONEXPERT_EXPERIMENT.md) is complete: three BF16-origin recipes below 7.5 GB, integrity gates, and a frozen 24-task CUDA coding screen. Attention restoration improved the weak native 4-bit baseline, but no candidate earned promotion over pinned MXFP4. Candidate C passed 22/24 versus MXFP4 21/24, while taking 23.7% more generation time and using 9.9% more weight bytes. That first sprint did not run candidate HumanEval+ or M4 validation.
+
+The [group-32 and bounded DWQ follow-up](docs/REFINEMENT_EXPERIMENT.md) is complete on CUDA: D passed 20/24, C and calibrated C 21/24, and fresh pinned MXFP4 22/24. Calibrated C reduced development generation time at unchanged size, but worsened validation loss and added truncations. On a separate untouched 12-task fixture it passed 9/12 versus 8/12 for both controls, while taking 31% more generation time than MXFP4. Neither result earns promotion. Exact precision maps, the failed calibration attempt and the successful checkpointed retry are preserved.
+
+The refined C + DWQ artifact also completed matched M4 measurements: 42.9/41.7/37.6 decode tokens/s at 1K/4K/16K, versus MXFP4 51.6/48.9/44.2. Its maximum measured MLX memory was 7.83 GB versus 7.19 GB. The editor-open sequence recorded transient pressure flag 4 and material swap; allocator size alone does not establish comfortable 16 GB headroom.

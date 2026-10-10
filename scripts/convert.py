@@ -14,7 +14,7 @@ REVISION = "92ddae9fc7665e9f801d141d2e5a6b2caf2460c4"
 
 
 def mixed_plan(shapes, config, recipe):
-    if recipe not in {'A', 'B', 'C'}:
+    if recipe not in {'A', 'B', 'C', 'D'}:
         raise ValueError('Unknown mixed recipe')
     expected = {'model.embed_tokens'}
     if not config['tie_word_embeddings']:
@@ -33,11 +33,12 @@ def mixed_plan(shapes, config, recipe):
         bits = 4
         if path.endswith('.mlp.gate'):
             bits = 8
-        elif recipe in {'A', 'C'} and '.self_attn.' in path:
+        elif recipe in {'A', 'C', 'D'} and '.self_attn.' in path:
             bits = 6
-        elif recipe in {'B', 'C'} and path in {'model.embed_tokens', 'lm_head'}:
+        elif recipe in {'B', 'C', 'D'} and path in {'model.embed_tokens', 'lm_head'}:
             bits = 6
-        plan[path] = {'bits': bits, 'group_size': 64, 'mode': 'affine'}
+        group_size = 32 if recipe == 'D' and path.endswith('.switch_mlp.down_proj') else 64
+        plan[path] = {'bits': bits, 'group_size': group_size, 'mode': 'affine'}
     return plan
 
 
@@ -47,7 +48,7 @@ def estimate_payload(tensors, plan):
         policy = plan.get(name.removesuffix('.weight')) if name.endswith('.weight') else None
         if policy:
             count = math.prod(tensor['shape'])
-            total += count * policy['bits'] // 8 + count // 64 * 4
+            total += count * policy['bits'] // 8 + count // policy['group_size'] * 4
         else:
             total += tensor['nbytes']
     return total
@@ -70,7 +71,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--bits", type=int, choices=[4, 6], default=4)
     p.add_argument("--device", choices=["cpu", "gpu"], default="gpu")
-    p.add_argument('--recipe', choices=['A', 'B', 'C'])
+    p.add_argument('--recipe', choices=['A', 'B', 'C', 'D'])
     p.add_argument('--estimate-only', action='store_true')
     args = p.parse_args()
     dest = Path(f'artifacts/mellum2.1-mixed-{args.recipe}-g64' if args.recipe else

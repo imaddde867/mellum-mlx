@@ -17,10 +17,10 @@ python -m mlx_lm generate --model imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit
 
 | Your Mac | Use | Why |
 | --- | --- | --- |
-| 24 GB or more | [This 6-bit](https://huggingface.co/imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit-g64) | Closest to BF16 of the tested quantizations (146 vs 153 of 164). |
-| 16 GB | [randmaru MXFP4](https://huggingface.co/randmaru/Mellum2.1-12B-A2.5B-Thinking-mlx-mxfp4) | Statistically tied with 6-bit (144 vs 146, p = 0.80) at 6.46 GB. The 6-bit peaked at 10.5 GB MLX memory with swap on a 16 GB M4. |
+| Any, including 16 GB | [randmaru MXFP4](https://huggingface.co/randmaru/Mellum2.1-12B-A2.5B-Thinking-mlx-mxfp4) | Ties 6-bit on HumanEval+ (144 vs 146, p = 0.80), decodes 34–41% faster on the M4 and peaks at 7.2 GB. |
+| 24 GB or more, want the closest to BF16 | [This 6-bit](https://huggingface.co/imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit-g64) | Fewest losses against BF16 (1 vs 8 discordant tasks), but the edge over MXFP4 is not significant. Peaks at 10.5 GB and swapped on a 16 GB M4. |
 
-I tried to beat MXFP4 for 16 GB (mixed 4/6-bit recipes, group-32 experts, DWQ calibration, and last MXFP4 with 8-bit attention). The best of them only tied it and was slower, so I recommend MXFP4 rather than publish a near-duplicate.
+I tried to beat MXFP4 for 16 GB (mixed 4/6-bit recipes, group-32 experts, DWQ calibration, and last MXFP4 with 8-bit attention). The best of them only tied it and was slower, so I recommend MXFP4 rather than publish a near-duplicate. My own 6-bit is the right pick only if you want the closest quantization to BF16 and have the memory.
 
 ## Results
 
@@ -31,12 +31,12 @@ I tried to beat MXFP4 for 16 GB (mixed 4/6-bit recipes, group-32 experts, DWQ ca
 | Model | Weights | HumanEval+ | Hit budget | Median tokens | M4 decode tok/s (1K / 16K) |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | BF16 original | 24.3 GB | 153 (93.3%) | 3 | 1,571 | n/a |
-| **6-bit (released)** | 9.87 GB | 146 (89.0%) | 3 | 1,521 | 48.0 / 43.5 |
-| randmaru MXFP4 | 6.46 GB | 144 (87.8%) | 6 | 1,544 | 65.7 / 57.1 |
+| **6-bit (released)** | 9.87 GB | 146 (89.0%) | 3 | 1,521 | 47.2 / 42.8 |
+| randmaru MXFP4 | 6.46 GB | 144 (87.8%) | 6 | 1,544 | 66.7 / 57.4 |
 | MXFP4 + 8-bit attention (not released) | 6.77 GB | 145 (88.4%) | 3 | 1,632 | 55.0 / 49.0 |
 | Affine 4-bit (not released) | 6.84 GB | 133 (81.1%) | 18 | 3,242 | n/a |
 
-M4 numbers: 14-inch MacBook Pro, M4, 16 GB. MXFP4 and the 8-bit-attention candidate ran in one session. The 6-bit number comes from an earlier session. Full tables, paired statistics, receipts and limitations: [docs/RESULTS.md](docs/RESULTS.md).
+M4 numbers: 14-inch MacBook Pro, M4, 16 GB, 256 output tokens, mean of three trials after warmup. 6-bit and MXFP4 ran back to back in one session; the 8-bit-attention candidate ran with a second MXFP4 run (65.7 / 57.1) minutes earlier. Full tables, paired statistics, receipts and limitations: [docs/RESULTS.md](docs/RESULTS.md).
 
 ## Findings
 

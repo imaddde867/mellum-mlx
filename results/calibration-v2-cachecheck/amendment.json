@@ -1,0 +1,87 @@
+{
+  "version": "calibration-v2-cachecheck-amendment-1.0",
+  "parent_commit": "33bb54d",
+  "frozen_utc": "2026-10-10T14:08:42.406131+00:00",
+  "protocol_sha256": "9ee04ae8d1a1077edf4f495d742cd0e414d88d00609b6ca474890ee6897746a7",
+  "inspection_sha256": "042774e4c8f007637f2cf0a8255c960f322476a0cfa34148713cf239b8b59337",
+  "runtime": {
+    "MLX_USE_CUDA_GRAPHS": "1",
+    "set_before_import": true,
+    "MLX_ENABLE_CACHE_THRASHING_CHECK": "0",
+    "allocator_cache_limit": 0,
+    "mlx": "0.32.3",
+    "mlx_cuda_13": "0.32.3",
+    "mlx_lm": "0.32.0",
+    "checkpoint": "same upstream 28 layer wrapper",
+    "MLX_CUDA_GRAPH_CACHE_SIZE": "400"
+  },
+  "qualification": {
+    "correctness_memory": "original preflight-v1.1 procedure in a fresh authorized graph-enabled process; same 5 percent mean-gradient and .005 mean-loss tolerances; longest U/S with resident Adam, no optimizer updates",
+    "sequence": "fresh process per U and S: five full validation repeats; first twelve frozen-order full backwards; five validation repeats; thirteenth frozen backward; longest full backward; discard gradients with no optimizer updates; verify all model parameters unchanged",
+    "restart": "separate discarded serialization checks: produce step1 checkpoint after first training trajectory, then fixed five repeated next-update comparisons per arm in fresh process against resident control; checkpoint loaded before each repetition; same .05 mean-gradient and .005 mean-loss limits; next-update delta relative L2 <=.05",
+    "failure": "stop exact error, no alternate runtime or tolerance changes"
+  },
+  "restart": {
+    "atomic": "fsync files and directory, rename complete verified directory, fsync parent; prune only after publication",
+    "retention": 2,
+    "contents": [
+      "FP32 masters",
+      "complete Adam state and step",
+      "MLX and Python RNG",
+      "order cursor",
+      "arm and immutable bindings",
+      "completed evaluations"
+    ],
+    "location": "work/calibration-v2-cachecheck-{U,S}/restart",
+    "exception": "no CUDA evaluation/serialization after error; fresh process from prior verified checkpoint only"
+  },
+  "abandoned": {
+    "U": {
+      "updates": 7,
+      "receipt_sha256": "2f56309ccaf3f63eea743f00b1dfed8e6a2abacb91e4da56feaa0fde4df6db3f",
+      "resumable": false
+    },
+    "S": {
+      "updates": 7,
+      "receipt_sha256": "d312ad827274e1f6a587c02ec749fe7d7a81ebe3695030282a8bd3c03d4b68e1",
+      "resumable": false
+    }
+  },
+  "replacement_arms": {
+    "U": "work/calibration-v2-cachecheck-U",
+    "S": "work/calibration-v2-cachecheck-S"
+  },
+  "budget": "one authorized fresh replacement attempt per arm from pristine C, seed123 fixed Adam1e-7 maximum128; no mixing abandoned results",
+  "selection": "unchanged original rule, NEW arm receipts and new qualified-runtime five-repeat step-zero references only, explicit qualification binding",
+  "behavior": "original frozen conditional behavior protocol; one candidate locked before reserved access, save/reload must pass both NEW references; authorized graph-enabled environment for all three serving processes",
+  "unchanged": [
+    "corpus",
+    "order",
+    "BF16 target arrays",
+    "teacher",
+    "FP32 temperature2 top1024 objective",
+    "precision",
+    "U/S masks",
+    "protected tensors",
+    "checkpoint schedule",
+    "repeat protocol",
+    "fidelity gate",
+    "behavior protocol"
+  ],
+  "forbidden": [
+    "graph-cache sweep",
+    "package or driver change",
+    "upstream patch",
+    "sequence clipping",
+    "detached history",
+    "learning-rate change",
+    "dataset expansion",
+    "M4",
+    "HumanEval+",
+    "uploads",
+    "push"
+  ],
+  "execution_timeout_s": 1800,
+  "runtime_verification": "reuse prior official-wheel verification; check unchanged distribution versions and compiled shared libraries; no downloads",
+  "device_memory": "CUDA cudaMemGetInfo point samples of device-wide used/free/total memory; distinct from MLX allocator peak; samples are not a total-VRAM peak"
+}

@@ -13,15 +13,19 @@ class RuntimeTests(unittest.TestCase):
         import calibration_v2_runtime
         return calibration_v2_runtime
 
-    def test_runtime_refuses_missing_or_late_graph_setting_and_check_bypass(self):
+    def test_runtime_requires_exact_authorized_environment_before_import(self):
         m=self.module()
-        with patch.dict(os.environ,{},clear=True):
-            with self.assertRaises(ValueError):m.require_runtime()
-        with patch.dict(os.environ,{'MLX_USE_CUDA_GRAPHS':'0'},clear=True):
-            self.assertEqual(m.require_runtime()['MLX_USE_CUDA_GRAPHS'],'0')
+        expected={'MLX_USE_CUDA_GRAPHS':'1','MLX_CUDA_GRAPH_CACHE_SIZE':'400','MLX_ENABLE_CACHE_THRASHING_CHECK':'0'}
+        with patch.dict(os.environ,expected,clear=True):
+            actual=m.require_runtime()
+            for key,value in expected.items():self.assertEqual(actual[key],value)
             with patch.dict(sys.modules,{'mlx.core':object()}):
                 with self.assertRaises(ValueError):m.require_runtime(before_import=True)
-        with patch.dict(os.environ,{'MLX_USE_CUDA_GRAPHS':'0','MLX_ENABLE_CACHE_THRASHING_CHECK':'0'},clear=True):
+        for change in [{'MLX_USE_CUDA_GRAPHS':'0'},{'MLX_CUDA_GRAPH_CACHE_SIZE':'401'},
+                       {'MLX_ENABLE_CACHE_THRASHING_CHECK':'1'}]:
+            with patch.dict(os.environ,{**expected,**change},clear=True):
+                with self.assertRaises(ValueError):m.require_runtime()
+        with patch.dict(os.environ,{},clear=True):
             with self.assertRaises(ValueError):m.require_runtime()
 
     def test_replacement_selection_rejects_old_or_mismatched_bindings(self):
@@ -34,6 +38,39 @@ class RuntimeTests(unittest.TestCase):
         with self.assertRaises(ValueError):m.check_replacement(arms,refs,'q',['first','second'])
         del arms['U']['bindings']
         with self.assertRaises(ValueError):m.check_replacement(arms,refs,'q',['first','second'])
+
+    def test_selection_refuses_historical_paths_before_reading_arms(self):
+        import argparse,json
+        m=self.module()
+        with tempfile.TemporaryDirectory() as tmp:
+            amendment=Path(tmp)/'amendment.json'
+            amendment.write_text(json.dumps({'replacement_arms':{'U':'new-U','S':'new-S'}}))
+            with patch.object(m,'AMENDMENT',amendment):
+                with self.assertRaisesRegex(ValueError,'Selection path'):
+                    m.select(argparse.Namespace(u=Path('work/calibration-v2-objective-U'),
+                        s=Path('work/calibration-v2-objective-S'),output=Path(tmp)/'decision.json'))
+            self.assertFalse((Path(tmp)/'decision.json').exists())
+
+    def test_timeout_terminates_child_and_preserves_log(self):
+        import calibration_v2_runtime_process as launcher
+        with tempfile.TemporaryDirectory() as tmp:
+            log=Path(tmp)/'probe.log'
+            result=launcher.run([sys.executable,'-c','import time;print("started",flush=True);time.sleep(60)'],log,.2)
+            self.assertTrue(result['timed_out'])
+            self.assertIsNone(result['exit_code'])
+            self.assertIn('started',log.read_text())
+            with self.assertRaises(FileExistsError):launcher.run([sys.executable,'-c','pass'],log,.2)
+
+    def test_training_requires_matching_successful_qualification(self):
+        m=self.module()
+        self.assertTrue(callable(getattr(m,'check_qualification',None)))
+        expected={'runtime':'new','data':'fixed'}
+        runtime={'MLX_USE_CUDA_GRAPHS':'1'}
+        good={'status':'complete','bindings':expected,'runtime':runtime,'updates':0}
+        m.check_qualification(good,expected,runtime)
+        for bad in [{**good,'status':'failed'},{**good,'bindings':{'runtime':'old'}},
+                    {**good,'runtime':{}},{**good,'updates':1}]:
+            with self.assertRaises(ValueError):m.check_qualification(bad,expected,runtime)
 
     def test_correctness_failure_is_recorded_without_cuda_recovery(self):
         import argparse,json
@@ -55,6 +92,17 @@ class RuntimeTests(unittest.TestCase):
 
 @unittest.skipUnless(sys.platform=='linux' and importlib.util.find_spec('mlx'),'restart arrays tested on pinned host')
 class RestartTests(unittest.TestCase):
+    def test_restart_rejects_nonfinite_master_before_publication(self):
+        import mlx.core as mx
+        import calibration_v2_runtime as m
+        mx.set_default_device(mx.cpu)
+        opt=m.adam();params={'weight':mx.array([float('inf')],dtype=mx.float32)}
+        opt.init(params);mx.eval(opt.state)
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(ValueError,'Nonfinite'):
+                m.save_restart(Path(tmp),params,opt,{'arm':'U','cursor':0,'bindings':{}})
+            self.assertFalse(list(Path(tmp).glob('step-*')))
+
     def test_atomic_restart_retains_two_and_restores_adam_rng_next_update(self):
         import mlx.core as mx
         import mlx.optimizers as optim

@@ -14,7 +14,7 @@ REVISION = "92ddae9fc7665e9f801d141d2e5a6b2caf2460c4"
 
 
 def mixed_plan(shapes, config, recipe):
-    if recipe not in {'A', 'B', 'C', 'D'}:
+    if recipe not in {'A', 'B', 'C', 'D', 'M'}:
         raise ValueError('Unknown mixed recipe')
     expected = {'model.embed_tokens'}
     if not config['tie_word_embeddings']:
@@ -30,6 +30,12 @@ def mixed_plan(shapes, config, recipe):
         raise ValueError(f'Unexpected eligible module coverage: {sorted(set(shapes) ^ expected)}')
     plan = {}
     for path in shapes:
+        if recipe == 'M':
+            # randmaru MXFP4 recipe plus affine 8-bit attention.
+            high = path.endswith('.mlp.gate') or '.self_attn.' in path
+            plan[path] = ({'bits': 8, 'group_size': 64, 'mode': 'affine'} if high else
+                          {'bits': 4, 'group_size': 32, 'mode': 'mxfp4'})
+            continue
         bits = 4
         if path.endswith('.mlp.gate'):
             bits = 8
@@ -48,7 +54,9 @@ def estimate_payload(tensors, plan):
         policy = plan.get(name.removesuffix('.weight')) if name.endswith('.weight') else None
         if policy:
             count = math.prod(tensor['shape'])
-            total += count * policy['bits'] // 8 + count // policy['group_size'] * 4
+            # affine: BF16 scale + bias per group; mxfp4: one uint8 scale per group.
+            per_group = 1 if policy['mode'] == 'mxfp4' else 4
+            total += count * policy['bits'] // 8 + count // policy['group_size'] * per_group
         else:
             total += tensor['nbytes']
     return total
@@ -71,10 +79,11 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--bits", type=int, choices=[4, 6], default=4)
     p.add_argument("--device", choices=["cpu", "gpu"], default="gpu")
-    p.add_argument('--recipe', choices=['A', 'B', 'C', 'D'])
+    p.add_argument('--recipe', choices=['A', 'B', 'C', 'D', 'M'])
     p.add_argument('--estimate-only', action='store_true')
     args = p.parse_args()
-    dest = Path(f'artifacts/mellum2.1-mixed-{args.recipe}-g64' if args.recipe else
+    dest = Path('artifacts/mellum2.1-mxfp4-a8' if args.recipe == 'M' else
+                f'artifacts/mellum2.1-mixed-{args.recipe}-g64' if args.recipe else
                 f"artifacts/mellum2.1-affine-{args.bits}bit-g64")
     if dest.exists():
         p.error(f"Refusing to overwrite {dest}; inspect or move it before retrying.")
@@ -99,7 +108,7 @@ def main():
         from mlx_lm.utils import quantize_model, save
         from mlx.utils import tree_flatten
         from validate import check_hashes
-        reference = json.loads(Path('artifacts/mellum2.1-affine-4bit-g64/conversion.json').read_text())
+        reference = json.loads(Path('results/provenance/mellum2.1-affine-4bit-g64/conversion.json').read_text())
         if reference['source_revision'] != REVISION:
             raise ValueError('Pinned source receipt mismatch')
         check_hashes(src, reference['source_sha256'])
@@ -152,8 +161,11 @@ def main():
     manifest = {
         "source": SOURCE, "source_revision": REVISION,
         "created_utc": datetime.now(timezone.utc).isoformat(),
-        "quantization": {"mode": "affine", "bits": args.bits, "group_size": 64,
-                         "router_bits": 8, "non_quantized_dtype": "bfloat16"},
+        "quantization": ({"mode": "mxfp4", "bits": 4, "group_size": 32, "attention_bits": 8,
+                          "router_bits": 8, "non_quantized_dtype": "bfloat16"}
+                         if args.recipe == 'M' else
+                         {"mode": "affine", "bits": args.bits, "group_size": 64,
+                          "router_bits": 8, "non_quantized_dtype": "bfloat16"}),
         "device": args.device, "platform": platform.platform(),
         "python": platform.python_version(),
         "packages": {pkg: importlib.metadata.version(pkg) for pkg in

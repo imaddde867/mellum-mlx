@@ -71,6 +71,19 @@ class MixedPrecisionTests(unittest.TestCase):
         self.assertEqual(convert.estimate_payload(tensors, d) - convert.estimate_payload(tensors, c),
                          231211008)
 
+    def test_m_is_mxfp4_with_affine8_attention_and_routers(self):
+        plan = convert.mixed_plan(self.shapes(), {'num_hidden_layers': 1, 'tie_word_embeddings': False}, 'M')
+        affine8 = {'bits': 8, 'group_size': 64, 'mode': 'affine'}
+        mxfp4 = {'bits': 4, 'group_size': 32, 'mode': 'mxfp4'}
+        for path, policy in plan.items():
+            high = '.self_attn.' in path or path.endswith('.mlp.gate')
+            self.assertEqual(policy, affine8 if high else mxfp4, path)
+
+    def test_mxfp4_estimate_uses_one_byte_scales_without_biases(self):
+        tensors = {'x.weight': {'shape': [2, 64], 'nbytes': 256}}
+        plan = {'x': {'bits': 4, 'group_size': 32, 'mode': 'mxfp4'}}
+        self.assertEqual(convert.estimate_payload(tensors, plan), 64 + 4)
+
     def test_receipt_rejects_silently_changed_precision(self):
         plan = {'x': {'bits': 6, 'group_size': 64, 'mode': 'affine'}}
         self.assertEqual(convert.realized_map({'bits': 4, 'group_size': 64, 'mode': 'affine', **plan}, plan), plan)

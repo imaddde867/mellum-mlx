@@ -1,0 +1,83 @@
+import importlib.util
+import os
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'scripts'))
+
+class RuntimeTests(unittest.TestCase):
+    def module(self):
+        self.assertIsNotNone(importlib.util.find_spec('calibration_v2_runtime'),'runtime runner missing')
+        import calibration_v2_runtime
+        return calibration_v2_runtime
+
+    def test_runtime_refuses_missing_or_late_graph_setting_and_check_bypass(self):
+        m=self.module()
+        with patch.dict(os.environ,{},clear=True):
+            with self.assertRaises(ValueError):m.require_runtime()
+        with patch.dict(os.environ,{'MLX_USE_CUDA_GRAPHS':'0'},clear=True):
+            self.assertEqual(m.require_runtime()['MLX_USE_CUDA_GRAPHS'],'0')
+            with patch.dict(sys.modules,{'mlx.core':object()}):
+                with self.assertRaises(ValueError):m.require_runtime(before_import=True)
+        with patch.dict(os.environ,{'MLX_USE_CUDA_GRAPHS':'0','MLX_ENABLE_CACHE_THRASHING_CHECK':'0'},clear=True):
+            with self.assertRaises(ValueError):m.require_runtime()
+
+    def test_replacement_selection_rejects_old_or_mismatched_bindings(self):
+        m=self.module()
+        refs={'runtime':'r','protocol':'p','data':'d','targets':'t','validation_targets':'v','source':'s','order':'o'}
+        arms={a:{'status':'complete','updates':128,'arm':a,'bindings':refs,'qualification_sha256':'q',
+                 'update_order':['first','second']} for a in ['U','S']}
+        m.check_replacement(arms,refs,'q',['first','second'])
+        arms['U']['bindings']={**refs,'runtime':'old'}
+        with self.assertRaises(ValueError):m.check_replacement(arms,refs,'q',['first','second'])
+        del arms['U']['bindings']
+        with self.assertRaises(ValueError):m.check_replacement(arms,refs,'q',['first','second'])
+
+    def test_correctness_failure_is_recorded_without_cuda_recovery(self):
+        import argparse,json
+        m=self.module()
+        self.assertTrue(callable(getattr(m,'correctness',None)),'failure receipt handler missing')
+        with tempfile.TemporaryDirectory() as tmp:
+            output=Path(tmp)/'correctness'
+            report={'runtime':{'MLX_USE_CUDA_GRAPHS':'0'},'updates':0}
+            # The expensive backend boundary fails; filesystem/error handling stays real.
+            with patch.object(m.base,'preflight',side_effect=RuntimeError('cudaMallocAsync out of memory')):
+                with self.assertRaisesRegex(RuntimeError,'cudaMallocAsync'):
+                    m.correctness(argparse.Namespace(output=output),report)
+            saved=json.loads((output/'receipt.json').read_text())
+            self.assertEqual(saved['status'],'failed')
+            self.assertIn('cudaMallocAsync',saved['error'])
+            self.assertEqual(saved['runtime']['MLX_USE_CUDA_GRAPHS'],'0')
+            self.assertEqual(saved['updates'],0)
+            self.assertFalse(list(output.rglob('*.safetensors')))
+
+@unittest.skipUnless(sys.platform=='linux' and importlib.util.find_spec('mlx'),'restart arrays tested on pinned host')
+class RestartTests(unittest.TestCase):
+    def test_atomic_restart_retains_two_and_restores_adam_rng_next_update(self):
+        import mlx.core as mx
+        import mlx.optimizers as optim
+        import calibration_v2_runtime as m
+        mx.set_default_device(mx.cpu)
+        params={'weight':mx.array([1.,2.],dtype=mx.float32)}
+        opt=optim.Adam(learning_rate=1e-7,betas=[.9,.999],eps=1e-8,bias_correction=True)
+        mx.random.seed(123)
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            for step in range(1,4):
+                params=opt.apply_gradients({'weight':mx.array([.5,-.25])},params);mx.eval(params,opt.state)
+                m.save_restart(root,params,opt,{'arm':'U','cursor':step,'bindings':{'test':'fixed'}})
+            self.assertEqual([p.name for p in sorted(root.glob('step-*'))],['step-002','step-003'])
+            expected=opt.apply_gradients({'weight':mx.array([.3,.2])},params);mx.eval(expected,opt.state)
+            expected_rng=mx.random.uniform(shape=(3,));mx.eval(expected_rng)
+            restored,state=m.load_restart(root/'step-003',{'test':'fixed'},'U')
+            other=optim.Adam(learning_rate=1e-7,betas=[.9,.999],eps=1e-8,bias_correction=True)
+            other.state=state
+            actual=other.apply_gradients({'weight':mx.array([.3,.2])},restored);mx.eval(actual,other.state)
+            self.assertEqual(actual['weight'].tolist(),expected['weight'].tolist())
+            self.assertEqual(other.step.item(),4)
+            self.assertEqual(mx.random.uniform(shape=(3,)).tolist(),expected_rng.tolist())
+            with self.assertRaises(ValueError):m.load_restart(root/'step-003',{'test':'different'},'U')
+            with (root/'step-003'/'state.safetensors').open('ab') as out:out.write(b'corrupt')
+            with self.assertRaises(ValueError):m.load_restart(root/'step-003',{'test':'fixed'},'U')

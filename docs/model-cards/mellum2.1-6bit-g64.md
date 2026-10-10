@@ -22,7 +22,7 @@ JetBrains' Mellum2.1 Thinking (12B MoE, 2.5B active) converted to native MLX 6-b
 
 164 HumanEval+ tasks (expanded tests), same CUDA GPU, same prompts, upstream chat template, greedy decoding, 8,192 completion tokens, pinned EvalPlus container. One sample per task.
 
-| Candidate | Weights | HumanEval+ | Solved within 4,096 tokens | Median completion tokens | Reasoning length vs BF16 (paired) |
+| Candidate | Weights | HumanEval+ | Solved within 4,096 tokens | Median completion tokens | Completion length vs BF16 (paired) |
 |---|---:|---:|---:|---:|---:|
 | BF16 original | 24.3 GB | 153/164 (93.3%) | 148 | 1,571 | 1.00x |
 | **This 6-bit** | **9.87 GB** | **146/164 (89.0%)** | **141** | **1,521** | **1.04x** |
@@ -32,7 +32,7 @@ JetBrains' Mellum2.1 Thinking (12B MoE, 2.5B active) converted to native MLX 6-b
 How to read this:
 - 6-bit and MXFP4 are statistically tied: 9 tasks passed only 6-bit, 7 only MXFP4 (exact McNemar p = 0.80). This card does not claim 6-bit is better than MXFP4.
 - Both are measurably below BF16 (6-bit: 1 vs 8 discordant tasks, p = 0.039).
-- Both keep BF16's reasoning length. Our plain affine 4-bit did not: it reasoned 2.2x longer on the same tasks and ran out of budget mid-thought on 18. That is why it isn't released. The cause is under investigation.
+- Both keep BF16's completion length. Our plain affine 4-bit did not: its completions, mostly reasoning, were 2.2x longer on the same tasks and ran out of budget mid-thought on 18. That is why it isn't released. The cause is not established.
 - These are single-run regression results. Training overlap with HumanEval+ is possible. They do not measure agent reliability.
 
 Raw responses, per-task outcomes, provenance and scripts: [github.com/imaddde867/mellum-mlx](https://github.com/imaddde867/mellum-mlx).

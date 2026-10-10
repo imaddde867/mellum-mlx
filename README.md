@@ -18,7 +18,7 @@ python -m mlx_lm generate --model imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit
 | 24 GB or more | [This 6-bit](https://huggingface.co/imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit-g64) | HumanEval+ 89.0% vs 87.8% for MXFP4, a statistical tie (McNemar p = 0.80); 6-bit sits closer to BF16 at 93.3%. |
 | 16 GB | [randmaru MXFP4](https://huggingface.co/randmaru/Mellum2.1-12B-A2.5B-Thinking-mlx-mxfp4) | Ties this 6-bit on HumanEval+ at 6.46 GB. On the M4 16 GB, 6-bit peaked at 10.5 GB MLX memory with material swap. |
 
-I tried to build a better 16 GB model than MXFP4 (mixed 4/6-bit recipes, group-32 experts, DWQ calibration). Nothing beat it, so I stopped and recommend it. The experiments are archived under `docs/` on the `archive/research-2026-10-11` tag.
+I tried to build a better 16 GB model than MXFP4 (mixed 4/6-bit recipes, group-32 expert down-projections, DWQ calibration). Nothing beat it, so I stopped and recommend it. The experiments are archived under [`docs/` on the `archive/research-2026-10-11` tag](https://github.com/imaddde867/mellum-mlx/tree/archive/research-2026-10-11/docs).
 
 ## Results
 
@@ -35,7 +35,7 @@ Apple M4 (16 GB), decode tokens/s at 1K / 4K / 16K context: 6-bit 48.0 / 47.1 / 
 
 ## Findings
 
-- **Plain affine 4-bit reasons 2.2x longer than BF16** on the same tasks (paired Wilcoxon p = 5e-25, n = 144), hitting the token budget mid-thought on 18 of 164. 6-bit and MXFP4 keep BF16's reasoning length. The cause is not established.
+- **Plain affine 4-bit writes 2.2x longer completions than BF16, mostly reasoning,** on the same tasks (paired Wilcoxon p = 5e-25, n = 144), hitting the token budget mid-thought on 18 of 164. 6-bit and MXFP4 stay at BF16's completion length. The cause is not established.
 - **MLX-LM 0.32.0 drops unparseable tool calls silently**: the response keeps `finish_reason: "tool_calls"` but `tool_calls` is empty. A tested patch is in [patches/](patches/). The same bug has an open upstream fix, [ml-explore/mlx-lm#1957](https://github.com/ml-explore/mlx-lm/pull/1957).
 - **Mellum's template replays prior reasoning only from `reasoning_content`**, but the server returns `reasoning`, so clients that echo messages back lose earlier thinking between tool steps.
 - **Repository-agent trials are weak evidence**: one task, 1 success of 3 seeds after patches. Not a reliability claim.

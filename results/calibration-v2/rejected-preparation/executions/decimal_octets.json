@@ -1,0 +1,12 @@
+{
+  "family": "decimal_octets",
+  "solution": {
+    "sanitized": "def decimal_octets(text):\n    parts = text.split(\".\")\n    if len(parts) != 4 or any(not p or any(c not in \"0123456789\" for c in p) for p in parts):\n        raise ValueError(\"invalid address\")\n    values = tuple(map(int, parts))\n    if any(v > 255 for v in values):\n        raise ValueError(\"invalid address\")\n    return values",
+    "passed": true
+  },
+  "buggy": {
+    "sanitized": "def decimal_octets(text):\n    parts = text.split(\".\")\n    if len(parts) != 4 or any(not p or any(c not in \"0123456789\" for c in p) for p in parts):\n        raise ValueError(\"invalid address\")\n    values = tuple(map(int, parts))\n    if any(v > 256 for v in values):\n        raise ValueError(\"invalid address\")\n    return values",
+    "passed": false,
+    "error": "AssertionError: "
+  }
+}

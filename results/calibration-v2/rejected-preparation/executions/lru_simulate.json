@@ -1,0 +1,12 @@
+{
+  "family": "lru_simulate",
+  "solution": {
+    "sanitized": "def lru_simulate(requests, capacity):\n    from collections import OrderedDict\n    if capacity < 1:\n        raise ValueError(\"capacity\")\n    cache, misses = OrderedDict(), 0\n    for key in requests:\n        if key not in cache:\n            misses += 1\n            if len(cache) == capacity:\n                cache.popitem(last=False)\n        cache[key] = None\n        cache.move_to_end(key)\n    return misses, list(cache)",
+    "passed": true
+  },
+  "buggy": {
+    "sanitized": "def lru_simulate(requests, capacity):\n    from collections import OrderedDict\n    if capacity < 1:\n        raise ValueError(\"capacity\")\n    cache, misses = OrderedDict(), 0\n    for key in requests:\n        if key not in cache:\n            misses += 1\n            if len(cache) == capacity:\n                cache.popitem(last=True)\n        cache[key] = None\n        cache.move_to_end(key)\n    return misses, list(cache)",
+    "passed": false,
+    "error": "AssertionError: "
+  }
+}

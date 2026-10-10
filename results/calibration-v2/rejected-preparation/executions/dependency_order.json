@@ -1,0 +1,12 @@
+{
+  "family": "dependency_order",
+  "solution": {
+    "sanitized": "def dependency_order(graph):\n    remaining = {node: set(deps) for node, deps in graph.items()}\n    if any(dep not in graph for deps in remaining.values() for dep in deps):\n        raise ValueError(\"unknown dependency\")\n    out = []\n    while remaining:\n        ready = sorted(node for node, deps in remaining.items() if not deps)\n        if not ready:\n            raise ValueError(\"cycle\")\n        node = ready[0]\n        out.append(node)\n        del remaining[node]\n        for deps in remaining.values():\n            deps.discard(node)\n    return out",
+    "passed": true
+  },
+  "buggy": {
+    "sanitized": "def dependency_order(graph):\n    remaining = {node: set(deps) for node, deps in graph.items()}\n    if any(dep not in graph for deps in remaining.values() for dep in deps):\n        raise ValueError(\"unknown dependency\")\n    out = []\n    while remaining:\n        ready = sorted(node for node, deps in remaining.items() if not deps)\n        if not ready:\n            raise ValueError(\"cycle\")\n        node = ready[-1]\n        out.append(node)\n        del remaining[node]\n        for deps in remaining.values():\n            deps.discard(node)\n    return out",
+    "passed": false,
+    "error": "AssertionError: "
+  }
+}

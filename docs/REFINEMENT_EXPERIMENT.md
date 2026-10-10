@@ -1,5 +1,7 @@
 # Group-32 and bounded DWQ experiment
 
+The proposed learning-rate follow-up has now completed as a [gated diagnostic](DWQ_DIAGNOSTIC.md); it stopped at the loss gate with pristine C selected. This report retains the earlier measurements and decision.
+
 D did not improve the matched development result. A 32-update DWQ pass on C completed and reduced development generation time without increasing weights, but worsened teacher validation loss, added truncations and did not beat MXFP4's solved count. **No release is promoted.** C remains an experimental control. This is completed optimization work, including a preserved failed calibration attempt, rather than a release claim.
 
 Evidence: [receipts and raw archives](../results/refinement-v1/), [frozen decisions](../results/refinement-v1/predeclared.json), [paired development results](../results/refinement-v1/summary.json). Local execution used the existing RTX 5090 environment: MLX 0.32.3, MLX-LM 0.32.0, Python 3.12. The remote checkout's recorded Git revision differs from the local research branch; changed scripts were copied and their hashes verified. [Runtime bindings](../results/refinement-v1/runtime-code.json) and exact executed training snapshots preserve that distinction. CUDA timings below are not Mac performance.
@@ -67,6 +69,8 @@ Apple M4, 16 GB, AC power; low-power mode was observed off after measurement. On
 | MXFP4 | 1K | 532.8 | 51.6 | 1.923 | 6.96 |
 | MXFP4 | 4K | 476.9 | 48.9 | 8.589 | 6.99 |
 | MXFP4 | 16K | 426.2 | 44.2 | 38.443 | 7.19 |
+
+Uncalibrated C was not included in this M4 comparison; the decode gap cannot be attributed specifically to DWQ rather than C’s underlying recipe or execution effects. The initial pressure event occurred during finite inference, not ordinary serving, and MXFP4 inherited existing swap.
 
 DWQ decode throughput was **16.8%, 14.8% and 14.8% lower**, respectively. Prompt throughput was similar. Individual measured 16K decode trials ranged 35.8–38.6 for DWQ and 42.9–44.8 for MXFP4; all trials remain in receipts. These synthetic repeated-prefix results establish neither full coding-response latency nor an ideal unloaded-Mac speed ceiling. They are independent of CUDA timings and earlier Mac measurements.
 

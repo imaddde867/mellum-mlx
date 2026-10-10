@@ -1,6 +1,8 @@
 """Bounded cached-target DWQ; preserve packed weights, routers and BF16 exclusions."""
 import argparse
 import json
+import math
+import statistics
 import shutil
 import time
 from pathlib import Path
@@ -18,6 +20,51 @@ def check_changes(changed, plan):
         policy = plan.get(path, {})
         if name not in {'scales', 'biases'} or policy.get('mode') != 'affine' or policy.get('bits', 8) >= 8:
             raise ValueError(f'DWQ changed protected parameter: {key}')
+
+
+def require_pristine_c(conversion):
+    if conversion.get('recipe') != 'C' or conversion.get('source_revision') != REVISION or 'calibration' in conversion:
+        raise ValueError('Diagnostic requires pristine BF16-origin C')
+
+
+def select_checkpoint(baseline, checkpoints):
+    def valid(values):
+        return len(values) >= 3 and all(math.isfinite(x) for x in values)
+    if not valid(baseline) or any(step not in {8,16,24,32} or
+            len(values) != len(baseline) or not valid(values) for step,values in checkpoints.items()):
+        raise ValueError('Incomplete, nonfinite or unscheduled validation')
+    baseline_mean = statistics.mean(baseline)
+    eligible = {step:statistics.mean(values) for step,values in checkpoints.items()
+        if max(values) < min(baseline) and baseline_mean - statistics.mean(values) >
+           max(max(baseline)-min(baseline), max(values)-min(values))}
+    return min(eligible, key=eligible.get) if eligible else 0
+
+
+def validation_repeats(model, params, targets, data):
+    import mlx.core as mx
+    from mlx.utils import tree_map
+    from mlx_lm.tuner.trainer import iterate_batches
+    from mlx_lm.tuner.losses import kl_div_loss
+    if params is not None:
+        model.update(tree_map(lambda x: x.astype(mx.bfloat16), params))
+    values = []
+    for _ in range(5):
+        total, tokens = 0.0, 0
+        for index,(batch,lengths) in enumerate(iterate_batches(data, 1, 256, seed=123)):
+            batch = batch[:, :-1]
+            teacher, ids = targets(batch, index, split='valid')
+            logits = mx.take_along_axis(model(batch), ids, axis=-1)
+            losses = kl_div_loss(0.5 * logits, 0.5 * teacher)
+            mask = mx.arange(1, 1 + teacher.shape[1]) < lengths[:, 1:]
+            loss_sum = (mask * losses).sum()
+            count = mask.sum()
+            mx.eval(loss_sum, count)
+            total += loss_sum.item(); tokens += count.item()
+        loss = total / tokens
+        if tokens != 915 or not math.isfinite(loss):
+            raise ValueError('Invalid diagnostic validation objective')
+        values.append(loss)
+    return values
 
 
 def calibration(root):
@@ -40,7 +87,7 @@ def calibration(root):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('stage', choices=['targets','train'])
+    p.add_argument('stage', choices=['targets','train','diagnostic','verify'])
     p.add_argument('--student', type=Path)
     p.add_argument('--destination', type=Path)
     p.add_argument('--cache', type=Path, default=Path('work/refinement-v1-targets'))
@@ -49,8 +96,10 @@ def main():
     args = p.parse_args()
     if args.output.exists() or (args.stage == 'targets' and args.cache.exists()):
         p.error('Refusing existing evidence or teacher cache')
-    if args.stage == 'train' and (not args.student or not args.destination or args.destination.exists()):
+    if args.stage in {'train','diagnostic'} and (not args.student or not args.destination or args.destination.exists()):
         p.error('Training requires a student and new destination')
+    if args.stage == 'verify' and not args.student:
+        p.error('Verification requires the saved diagnostic artifact')
     import mlx.core as mx
     import mlx.optimizers as optimizers
     from mlx.utils import tree_flatten
@@ -74,8 +123,8 @@ def main():
                      'source_revision':REVISION, 'source_sha256':native['source_sha256'],
                      'dwq_sha256':sha256(Path(upstream.__file__))}
     report = {'status':'running', 'stage':args.stage, 'cache_binding':cache_binding,
-              'script_sha256':sha256(Path(__file__)), 'learning_rate':1e-6,
-              'planned_updates':32, 'updates':0, 'gradient_checkpoint':args.stage == 'train'}
+              'script_sha256':sha256(Path(__file__)), 'learning_rate':1e-7 if args.stage in {'diagnostic','verify'} else 1e-6,
+              'planned_updates':32, 'updates':0, 'gradient_checkpoint':args.stage in {'train','diagnostic','verify'}}
     started = time.monotonic()
     try:
         if args.stage == 'targets':
@@ -94,6 +143,11 @@ def main():
             report['student'] = binding(args.student)
             conversion = json.loads((args.student/'conversion.json').read_text())
             check_hashes(args.student, conversion['artifact_sha256'])
+            if args.stage == 'diagnostic':
+                require_pristine_c(conversion)
+                original_c = json.loads(Path('results/nonexpert-v1/integrity-C.json').read_text())
+                if report['student']['weights_sha256'] != original_c['weights_sha256']:
+                    raise ValueError('Diagnostic C differs from original integrity binding')
             model, tokenizer, config = load(str(args.student), return_config=True)
             plan = realized_map(config['quantization'], conversion['precision_map'])
             model.freeze()
@@ -102,6 +156,35 @@ def main():
             def targets(_, index, split):
                 value = mx.load(args.cache/split/f'{index:010d}.safetensors')
                 return value['logits'], value['indices']
+            if args.stage == 'verify':
+                diagnostic = conversion['calibration']['diagnostic']
+                model.train()
+                from mlx_lm.tuner.trainer import grad_checkpoint
+                grad_checkpoint(model.layers[0])
+                reloaded = validation_repeats(model, None, targets, data['valid'])
+                step = diagnostic['selected_step']
+                advance = step > 0 and select_checkpoint(diagnostic['baseline'], {step:reloaded}) == step
+                report.update(reloaded_validation=reloaded, selected_step=step,
+                    advance_to_development=advance, baseline=diagnostic['baseline'],
+                    selected_before_save=diagnostic['selected_validation'], status='complete')
+                return
+            diagnostic = args.stage == 'diagnostic'
+            best_params = None
+            if diagnostic:
+                from mlx.utils import tree_map
+                from mlx_lm.tuner.trainer import grad_checkpoint
+                model.train()
+                def unfreeze(_, module):
+                    if hasattr(module, 'bits') and hasattr(module, 'group_size') and module.mode == 'affine' and module.bits < 8:
+                        module.unfreeze(keys=['scales','biases'], recurse=False)
+                model.apply_to_modules(unfreeze)
+                # Apply the same upstream checkpoint wrapper once, before all validation.
+                grad_checkpoint(model.layers[0])
+                best_params = model.trainable_parameters()
+                baseline = validation_repeats(model, None, targets, data['valid'])
+                measured = {}
+                report['diagnostic'] = {'baseline':baseline, 'checkpoints':measured, 'selected_step':0}
+                print(json.dumps({'step':0,'validation':baseline}), flush=True)
             class FiniteAdam(optimizers.Adam):
                 def apply_gradients(self, gradients, parameters):
                     values = [mx.all(mx.isfinite(v)) for _,v in tree_flatten(gradients)]
@@ -109,11 +192,30 @@ def main():
                         raise ValueError('Nonfinite DWQ gradient')
                     result = super().apply_gradients(gradients, parameters)
                     report['updates'] += 1
+                    if diagnostic and report['updates'] % 8 == 0:
+                        nonlocal best_params
+                        step = report['updates']
+                        measured[step] = validation_repeats(model, result, targets, data['valid'])
+                        selected = select_checkpoint(baseline, measured)
+                        if selected == step:
+                            best_params = tree_map(lambda x: x.astype(mx.bfloat16), result)
+                            mx.eval(best_params)
+                        report['diagnostic']['selected_step'] = selected
+                        print(json.dumps({'step':step,'validation':measured[step],
+                                          'selected_step':selected}), flush=True)
                     return result
-            dwq_quantize(model, targets, FiniteAdam(learning_rate=1e-6, bias_correction=True),
-                         data['train'], data['valid'], 1, 256, 123, gradient_checkpoint=True)
+            dwq_quantize(model, targets, FiniteAdam(learning_rate=report['learning_rate'], bias_correction=True),
+                         data['train'], data['valid'], 1, 256, 123, gradient_checkpoint=not diagnostic)
             if report['updates'] != 32:
                 raise ValueError('Incomplete DWQ training pass')
+            if diagnostic:
+                model.update(best_params)
+                selected = report['diagnostic']['selected_step']
+                selected_validation = baseline if selected == 0 else measured[selected]
+                report['diagnostic'].update(selected_validation=selected_validation,
+                    advance_to_development=selected > 0,
+                    rule='non-overlapping five-repeat intervals and mean reduction exceeding both observed ranges')
+                del best_params
             after = dict(tree_flatten(model.parameters()))
             if set(before) != set(after):
                 raise ValueError('DWQ changed parameter keys')
@@ -126,7 +228,11 @@ def main():
                     raise ValueError(f'Nonfinite calibrated parameter: {key}')
                 if not mx.all(value == original).item():
                     changed.append(key)
-            check_changes(changed, plan)
+            if diagnostic and report['diagnostic']['selected_step'] == 0:
+                if changed:
+                    raise ValueError('Step-zero checkpoint differs from pristine C')
+            else:
+                check_changes(changed, plan)
             before.clear(); after.clear()
             model.eval()
             save(args.destination, args.student, model, tokenizer, config)
@@ -142,6 +248,9 @@ def main():
                     'cache_manifest_sha256':sha256(args.cache/'manifest.json'),
                     'data':manifest, 'changed_parameters':changed, 'finite_gradients':True,
                     'routers_packed_weights_and_excluded_tensors_unchanged':True})
+            if diagnostic:
+                conversion['calibration']['diagnostic'] = report['diagnostic']
+                conversion['calibration']['learning_rate'] = report['learning_rate']
             write_new(args.destination/'conversion.json', conversion)
             report.update(changed_parameters=changed, protected_parameters_unchanged=True,
                           finite_gradients=True, artifact=binding(args.destination))

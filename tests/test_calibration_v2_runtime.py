@@ -13,6 +13,7 @@ class RuntimeTests(unittest.TestCase):
         import calibration_v2_runtime
         return calibration_v2_runtime
 
+    @unittest.skipUnless(sys.platform!='linux' or importlib.util.find_spec('mlx'),'needs MLX on Linux')
     def test_runtime_requires_exact_authorized_environment_before_import(self):
         m=self.module()
         expected={'MLX_USE_CUDA_GRAPHS':'1','MLX_CUDA_GRAPH_CACHE_SIZE':'400','MLX_ENABLE_CACHE_THRASHING_CHECK':'0'}

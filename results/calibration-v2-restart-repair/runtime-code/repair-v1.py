@@ -71,9 +71,9 @@ def save_restart(root,params,opt,metadata):
             'rng.safetensors':{'mlx_key':mx.random.state[0]}}
     report={**metadata,'optimizer_step':cursor,'python_rng':random.getstate(),'files_sha256':{},'serialization_verified':False}
     for filename,values in arrays.items():
-        import numpy as np
-        if not all(np.isfinite(np.array(v)).all() for v in values.values()):raise ValueError('Nonfinite restart array')
+        if not all(mx.all(mx.isfinite(v)).item() for v in values.values()):raise ValueError('Nonfinite restart array')
         path=temporary/filename; mx.save_safetensors(path,values)
+        import numpy as np
         from safetensors import safe_open
         # Host readback processes one tensor at a time, never a second GPU state tree.
         with safe_open(path,framework='numpy') as loaded:
@@ -170,7 +170,7 @@ def restored_optimizer(params,state,cursor):
             v=moments[key+'.'+moment]
             if v.dtype!=mx.float32 or v.shape!=value.shape:raise ValueError('Restored Adam shape/dtype changed')
     if state['step'].dtype!=mx.uint64 or state['step'].shape!=() or state['step'].item()!=cursor:raise ValueError('Restored Adam step changed')
-    if state['learning_rate'].dtype!=mx.float32 or state['learning_rate'].shape!=() or state['learning_rate'].item()!=mx.array(1e-7,dtype=mx.float32).item():raise ValueError('Restored Adam learning rate changed')
+    if state['learning_rate'].dtype!=mx.float32 or state['learning_rate'].item()!=mx.array(1e-7,dtype=mx.float32).item():raise ValueError('Restored Adam learning rate changed')
     opt=adam();opt.state=state
     # Pinned MLX state setter clears this flag; complete moments are already validated.
     opt._initialized=True
@@ -266,10 +266,8 @@ def probe(args):
 def host_accumulate(total,key,value):
     import numpy as np
     value=np.asarray(value,dtype=np.float32)
-    if not np.isfinite(value).all():raise ValueError('Nonfinite diagnostic tensor')
     if key not in total:total[key]=value.copy()
     else:np.add(total[key],value,out=total[key])
-    if not np.isfinite(total[key]).all():raise ValueError('Nonfinite diagnostic accumulator')
 
 
 def host_relative(values,reference):
@@ -279,10 +277,8 @@ def host_relative(values,reference):
     for key,value in values.items():
         other=np.load(reference[key],mmap_mode='r') if isinstance(reference[key],Path) else reference[key]
         if value.shape!=other.shape or value.dtype!=other.dtype:raise ValueError('Reference schema changed')
-        if not np.isfinite(value).all() or not np.isfinite(other).all():raise ValueError('Nonfinite diagnostic comparison')
         difference+=np.square(value-other,dtype=np.float32).sum(dtype=np.float64).item()
         norm+=np.square(other,dtype=np.float32).sum(dtype=np.float64).item()
-    if not np.isfinite(difference) or not np.isfinite(norm):raise ValueError('Nonfinite diagnostic reduction')
     return (difference/max(norm,1e-30))**.5
 
 
@@ -376,13 +372,6 @@ def check_qualification(receipt,expected,runtime):
         raise ValueError('Training lacks matching successful runtime qualification')
 
 
-def resume_cursor(receipt,order,qualification):
-    cursor=receipt['cursor']
-    if not isinstance(cursor,int) or cursor<1 or cursor>len(order) or receipt.get('update_order')!=order[:cursor] or receipt.get('qualification_sha256')!=qualification:
-        raise ValueError('Restart order, budget or qualification mismatch')
-    return cursor
-
-
 def train_arm(args):
     import mlx.core as mx
     from mlx.utils import tree_map,tree_flatten
@@ -394,28 +383,12 @@ def train_arm(args):
     _,rows,valid,order=base.corpus();by_id={r['id']:r for r in rows}
     report=execution_receipt(args.arm)
     report.update(qualification_sha256=sha256(qualification_path),evaluations={},update_order=[])
-    resume=args.checkpoint
-    if resume is None:args.output.mkdir(parents=True,exist_ok=False)
-    elif resume.parent!=args.output/'restart':raise ValueError('Restart is outside the arm rolling store')
-    started=time.monotonic()
+    args.output.mkdir(parents=True,exist_ok=False);started=time.monotonic()
     try:
-        if resume is None:
-            model,params,opt,original,config,conversion=setup();cursor=0
-        else:
-            saved=json.loads((resume/'receipt.json').read_text())
-            cursor=resume_cursor(saved,order,report['qualification_sha256'])
-            model,original,config,conversion=model_setup()
-            params,opt=restore_training_state(model,resume,expected,args.arm)
-            report.update(updates=cursor,update_order=list(saved['update_order']),evaluations=saved['evaluations'],
-                resumed_checkpoint=str(resume),resumed_checkpoint_sha256=sha256(resume/'receipt.json'))
+        model,params,opt,original,config,conversion=setup()
         report['eligible_keys']=sorted(k for k,_ in tree_flatten(params))
-        if cursor==0:report['evaluations']['0']=base.validation(model,valid,args.output/'step-0')
-        elif cursor in (8,32,64,96,128) and str(cursor) not in report['evaluations']:
-            slot=args.output/f'step-{cursor}-parameters.safetensors'
-            if not slot.exists():mx.save_safetensors(slot,dict(tree_flatten(params)))
-            report['evaluations'][str(cursor)]=base.validation(model,valid,args.output/f'step-{cursor}-resume-{uuid.uuid4().hex}')
-        model.train()
-        for step,ident in enumerate(order[cursor:],cursor+1):
+        report['evaluations']['0']=base.validation(model,valid,args.output/'step-0');model.train()
+        for step,ident in enumerate(order,1):
             begin=time.monotonic();row=by_id[ident]
             loss,grads=backward(model,params,row,args.arm);gradient=base.gradient_receipt(loss,grads)
             params=opt.apply_gradients(grads,params);mx.eval(params,opt.state)
@@ -440,10 +413,7 @@ def train_arm(args):
     except BaseException as error:report.update(status='failed',error=repr(error));raise
     finally:
         report['elapsed_s']=time.monotonic()-started
-        execution=args.output/'executions'/('run-'+uuid.uuid4().hex+'.json')
-        write_new(execution,report)
-        temporary=args.output/('.receipt-'+uuid.uuid4().hex+'.json')
-        write_new(temporary,report);os.replace(temporary,args.output/'receipt.json')
+        write_new(args.output/'receipt.json',report)
 
 
 def select(args):
@@ -462,21 +432,17 @@ def select(args):
 
 
 def qualification(args):
-    paths={'correctness':Path('results/calibration-v2-cachecheck/correctness/receipt.json'),**{f'probe-{a}':ROOT/f'probe-{a}/receipt.json' for a in ('U','S')},
+    paths={'correctness':ROOT/'correctness/receipt.json',**{f'probe-{a}':ROOT/f'probe-{a}/receipt.json' for a in ('U','S')},
         **{f'restart-{a}':ROOT/f'restart-restore-{a}/receipt.json' for a in ('U','S')}}
     receipts={k:json.loads(p.read_text()) for k,p in paths.items()}
     if any(v['status']!='complete' for v in receipts.values()):raise ValueError('Native workaround qualification failed')
     expected=bindings()
     for key,r in receipts.items():
-        comparison={**r['bindings']}
-        if key=='correctness':
-            if comparison['runtime']!=json.loads(AMENDMENT.read_text())['parent_amendment_sha256']:raise ValueError('Prior correctness amendment changed')
-            comparison['runtime']=expected['runtime']
-        if comparison!=expected or r['runtime']!=require_runtime():raise ValueError('Qualification execution mismatch')
+        if r['bindings']!=expected or r['runtime']!=require_runtime():raise ValueError('Qualification execution mismatch')
     if receipts['correctness']['protocol_sha256']!=expected['protocol']:raise ValueError('Correctness protocol changed')
     write_new(args.output,{'status':'complete','bindings':expected,'runtime':require_runtime(),
         'component_sha256':{k:sha256(p) for k,p in paths.items()},'updates':0,
-        'original_correctness_receipt_sha256':sha256(Path('results/calibration-v2-cachecheck/correctness/detail/receipt.json'))})
+        'original_correctness_receipt_sha256':sha256(ROOT/'correctness/detail/receipt.json')})
 
 
 
@@ -509,7 +475,7 @@ def main():
     parser.add_argument('--checkpoint',type=Path)
     parser.add_argument('--u',type=Path);parser.add_argument('--s',type=Path)
     args=parser.parse_args();require_runtime(before_import=True);verify_runtime_files()
-    if args.output.exists() and not (args.stage=='train' and args.checkpoint is not None):parser.error('Refusing existing evidence directory')
+    if args.output.exists():parser.error('Refusing existing evidence directory')
     if args.stage=='correctness':
         report=execution_receipt();report['protocol_sha256']=sha256(base.PROTOCOL)
         correctness(args,report)

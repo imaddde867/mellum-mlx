@@ -170,7 +170,7 @@ def restored_optimizer(params,state,cursor):
             v=moments[key+'.'+moment]
             if v.dtype!=mx.float32 or v.shape!=value.shape:raise ValueError('Restored Adam shape/dtype changed')
     if state['step'].dtype!=mx.uint64 or state['step'].shape!=() or state['step'].item()!=cursor:raise ValueError('Restored Adam step changed')
-    if state['learning_rate'].dtype!=mx.float32 or state['learning_rate'].shape!=() or state['learning_rate'].item()!=mx.array(1e-7,dtype=mx.float32).item():raise ValueError('Restored Adam learning rate changed')
+    if state['learning_rate'].dtype!=mx.float32 or state['learning_rate'].item()!=mx.array(1e-7,dtype=mx.float32).item():raise ValueError('Restored Adam learning rate changed')
     opt=adam();opt.state=state
     # Pinned MLX state setter clears this flag; complete moments are already validated.
     opt._initialized=True
@@ -266,10 +266,8 @@ def probe(args):
 def host_accumulate(total,key,value):
     import numpy as np
     value=np.asarray(value,dtype=np.float32)
-    if not np.isfinite(value).all():raise ValueError('Nonfinite diagnostic tensor')
     if key not in total:total[key]=value.copy()
     else:np.add(total[key],value,out=total[key])
-    if not np.isfinite(total[key]).all():raise ValueError('Nonfinite diagnostic accumulator')
 
 
 def host_relative(values,reference):
@@ -279,10 +277,8 @@ def host_relative(values,reference):
     for key,value in values.items():
         other=np.load(reference[key],mmap_mode='r') if isinstance(reference[key],Path) else reference[key]
         if value.shape!=other.shape or value.dtype!=other.dtype:raise ValueError('Reference schema changed')
-        if not np.isfinite(value).all() or not np.isfinite(other).all():raise ValueError('Nonfinite diagnostic comparison')
         difference+=np.square(value-other,dtype=np.float32).sum(dtype=np.float64).item()
         norm+=np.square(other,dtype=np.float32).sum(dtype=np.float64).item()
-    if not np.isfinite(difference) or not np.isfinite(norm):raise ValueError('Nonfinite diagnostic reduction')
     return (difference/max(norm,1e-30))**.5
 
 

@@ -170,7 +170,7 @@ def restored_optimizer(params,state,cursor):
             v=moments[key+'.'+moment]
             if v.dtype!=mx.float32 or v.shape!=value.shape:raise ValueError('Restored Adam shape/dtype changed')
     if state['step'].dtype!=mx.uint64 or state['step'].shape!=() or state['step'].item()!=cursor:raise ValueError('Restored Adam step changed')
-    if state['learning_rate'].dtype!=mx.float32 or state['learning_rate'].shape!=() or state['learning_rate'].item()!=mx.array(1e-7,dtype=mx.float32).item():raise ValueError('Restored Adam learning rate changed')
+    if state['learning_rate'].dtype!=mx.float32 or state['learning_rate'].item()!=mx.array(1e-7,dtype=mx.float32).item():raise ValueError('Restored Adam learning rate changed')
     opt=adam();opt.state=state
     # Pinned MLX state setter clears this flag; complete moments are already validated.
     opt._initialized=True

@@ -1,0 +1,73 @@
+{
+  "version": "calibration-v2-eval-1.0",
+  "predeclared_utc": "2026-10-10T12:27:36.927498+00:00",
+  "parent_local_commit": "34932d3",
+  "counts": {
+    "train": 128,
+    "valid": 32,
+    "reserved": 32
+  },
+  "license": "MIT: original authored sources; no external tasks or model-failure selection",
+  "source_revision": "92ddae9fc7665e9f801d141d2e5a6b2caf2460c4",
+  "chat_template_sha256": "4593a34d52f3364ac13ce57f4bea5688924e8942da6df8201e411db17e729f48",
+  "tokenizer_sha256": "58548a346eb073e5132bf7d8ad17dc6971bca36ade378ca4d2bfbc49bf60da2a",
+  "mxfp4_revision": "4ce0d28df07dfa4ed28077e5b718e866be2cf4cf",
+  "acceptance": [
+    "family-disjoint frozen splits before variants",
+    "exact 128/32/32 budget",
+    "raw solution equals pinned-sandbox sanitized source modulo exterior whitespace",
+    "all 40 positive solutions pass and all 40 buggy solutions fail; per-family result reused across identical variant code",
+    "schema-valid allowlisted calls; quotes/newlines roundtrip in strings",
+    "complete final code and reasoning transition in source and rendered template",
+    "no truncated sequence, no silent teacher repair",
+    "exact pinned tokenizer/template and input hashes"
+  ],
+  "teacher": {
+    "mode": "BF16 teacher forcing on original authored trajectories; no generation attempts",
+    "seed": 123,
+    "temperature": 2,
+    "top_k": 1024,
+    "split": "valid only",
+    "train_targets": "not captured in this untrained baseline task"
+  },
+  "sequence_policy": {
+    "full_context": true,
+    "chunk_tokens": 128,
+    "cache": "fresh per trajectory per forward, preserved across chunks",
+    "truncation": false,
+    "training_windows": null,
+    "memory_claim": "inference only; no assertion that gradient calibration fits"
+  },
+  "regions": {
+    "mapping": "offset overlap in exact upstream template; target token labels (positions 1 onward)",
+    "reasoning": "content inside rendered think tags",
+    "transition": "closing think marker plus four adjacent tokens on each side, overriding other regions",
+    "final": "assistant content outside think/tool call",
+    "tool_call": "tool call wrapper and serialized JSON, excluding transition overlap",
+    "context": "all remaining tokens; included in aggregate"
+  },
+  "objective": {
+    "definition": "teacher-to-student top-1024 renormalized KL at temperature 2; same objective as existing diagnostic, uniform per-token weighting, no T squared factor",
+    "legacy": "installed mlx_lm.tuner.losses.kl_div_loss in original logits dtype, sequence token sum in original dtype, host token-weighted aggregate",
+    "fp32": "evaluation-only logits cast before temperature scaling, FP32 KL and FP32 sequence reductions",
+    "identical_logits": "repeat zero gathered logits captured; both scorers see identical arrays before any repeated forwards",
+    "repeats": 5,
+    "comparison_order": "same captured logits first, then four additional fresh-cache forwards",
+    "historical": "existing diagnostic results and gate not revised; absolute values from new contexts/chunking are not historical improvements"
+  },
+  "decision": {
+    "relevant_gap": "on at least one assistant region pristine C FP32 KL mean >=0.01 and mean exceeds its five-repeat range; report whether C also reproducibly trails MXFP4",
+    "C_vs_MXFP4": "C min > MXFP4 max and mean difference exceeds both observed repeat ranges in an assistant region",
+    "qualification": "five repeats are empirical ranges, not confidence intervals; no optimizer/model selection authorized"
+  },
+  "reserved_policy": "no responses, tokenization, sandbox execution or logits for reserved tasks; never model selection",
+  "prohibited": [
+    "optimizer updates",
+    "new quant candidate",
+    "learning-rate trial",
+    "HumanEval+",
+    "M4 rerun",
+    "push",
+    "upload"
+  ]
+}

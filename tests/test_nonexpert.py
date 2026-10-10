@@ -2,6 +2,8 @@ import importlib.util
 import json
 import sys
 import unittest
+from tempfile import TemporaryDirectory
+from types import SimpleNamespace
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 
@@ -38,3 +40,11 @@ class ScreenTests(unittest.TestCase):
         self.assertEqual(result['generation_s'], 12)
         self.assertEqual(result['failed_generation_s'], 10)
         self.assertEqual(result['passed'], 1)
+
+    def test_new_candidate_requires_integrity_before_loading(self):
+        module = self.module()
+        with TemporaryDirectory() as directory:
+            args = SimpleNamespace(label='D', model=Path(directory)/'model',
+                                   output=Path(directory)/'screen-D.json')
+            with self.assertRaisesRegex(FileNotFoundError, 'integrity-D.json'):
+                module.screen(args)

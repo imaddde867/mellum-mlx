@@ -54,6 +54,23 @@ class MixedPrecisionTests(unittest.TestCase):
         plan = {'x': {'bits': 6, 'group_size': 64, 'mode': 'affine'}}
         self.assertEqual(convert.estimate_payload(tensors, plan), 232)
 
+    def test_d_changes_only_expert_down_groups(self):
+        cfg = {'num_hidden_layers': 1, 'tie_word_embeddings': False}
+        c = convert.mixed_plan(self.shapes(), cfg, 'C')
+        d = convert.mixed_plan(self.shapes(), cfg, 'D')
+        for path, policy in d.items():
+            expected = dict(c[path])
+            if path.endswith('.switch_mlp.down_proj'):
+                expected['group_size'] = 32
+            self.assertEqual(policy, expected)
+
+    def test_group32_estimate_adds_real_mellum_down_overhead(self):
+        tensors = {'down.weight': {'shape': [28, 64, 2304, 896], 'nbytes': 7398752256}}
+        c = {'down': {'bits': 4, 'group_size': 64, 'mode': 'affine'}}
+        d = {'down': {'bits': 4, 'group_size': 32, 'mode': 'affine'}}
+        self.assertEqual(convert.estimate_payload(tensors, d) - convert.estimate_payload(tensors, c),
+                         231211008)
+
     def test_receipt_rejects_silently_changed_precision(self):
         plan = {'x': {'bits': 6, 'group_size': 64, 'mode': 'affine'}}
         self.assertEqual(convert.realized_map({'bits': 4, 'group_size': 64, 'mode': 'affine', **plan}, plan), plan)

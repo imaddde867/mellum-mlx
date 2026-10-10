@@ -194,7 +194,7 @@ print(json.dumps(result))
 def screen(args):
     cases = frozen()
     manifest = json.loads((DATA / 'manifest.json').read_text())
-    if args.label in {'A','B','C'}:
+    if args.label not in {'bf16','4bit','mxfp4'}:
         gate = json.loads((args.output.parent / f'integrity-{args.label}.json').read_text())
         if gate['status'] != 'passed' or gate['weights_sha256'] != weight_hashes(args.model):
             raise ValueError('Candidate lacks a matching passed integrity receipt')
@@ -273,7 +273,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('action', choices=['integrity','screen'])
     p.add_argument('--model',type=Path,required=True)
-    p.add_argument('--label',choices=['bf16','4bit','mxfp4','A','B','C'])
+    p.add_argument('--label',choices=['bf16','4bit','mxfp4','A','B','C','D','DWQ'])
     p.add_argument('--output',type=Path,required=True)
     args = p.parse_args()
     (integrity if args.action=='integrity' else screen)(args)

@@ -2,6 +2,10 @@ import importlib.util
 import sys
 from pathlib import Path
 import unittest
+import json
+import hashlib
+import subprocess
+from tempfile import TemporaryDirectory
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 
 
@@ -39,3 +43,30 @@ class PairedSummaryTests(unittest.TestCase):
         a = [{'id':str(i),'passed':True,'elapsed_s':1,'completion_tokens':1} for i in range(3)]
         b = [dict(row,passed=False) for row in a]
         self.assertEqual(module.paired(a,b)['exact_mcnemar_p'], 0.25)
+
+    def test_current_candidate_subset_retains_failed_time(self):
+        module = self.module()
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            for label, seconds, tokens in [('C',146,8422),('mxfp4',72,480)]:
+                rows = [{'id':f'NE/{i:02d}', 'passed':label=='mxfp4' or i!=0,
+                         'elapsed_s':100 if label=='C' and i==0 else (2 if label=='C' else 3),
+                         'completion_tokens':8192 if label=='C' and i==0 else (10 if label=='C' else 20),
+                         'truncated':label=='C' and i==0, 'empty':label=='C' and i==0}
+                        for i in range(24)]
+                raw = root/f'screen-{label}.raw.jsonl'
+                raw.write_text(''.join(json.dumps(r)+'\n' for r in rows))
+                report = {'status':'complete','rows':rows,'raw_sha256':hashlib.sha256(raw.read_bytes()).hexdigest(),
+                          'weight_bytes':7_000_000_000,'passed':23 if label=='C' else 24,
+                          'generation_s':seconds,'failed_generation_s':100 if label=='C' else 0,
+                          'completion_tokens':tokens,'truncated':int(label=='C'),'empty':int(label=='C'),
+                          'memory':{'mlx_peak_bytes':8_000_000_000},'elapsed_with_startup_and_tests_s':seconds+10}
+                report.update({key:'shared' for key in ['protocol','script_sha256','server_sha256','packages','fixture_manifest_sha256']})
+                (root/f'screen-{label}.json').write_text(json.dumps(report))
+            run = subprocess.run([sys.executable,str(Path(module.__file__)), '--results',str(root),
+                                  '--labels','C','mxfp4'],capture_output=True,text=True)
+            self.assertEqual(run.returncode,0,run.stderr)
+            result = json.loads((root/'summary.json').read_text())
+            self.assertEqual(result['all_models_generation_s'],218)
+            self.assertEqual(result['rows'][0]['failed_generation_s'],100)
+            self.assertEqual(result['rows'][0]['vs_mxfp4']['right_only'],['NE/00'])

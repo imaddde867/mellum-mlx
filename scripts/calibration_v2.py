@@ -277,6 +277,12 @@ def reduce_captured(student, teacher, labels):
     return result
 
 
+def nvfp4_expected_hashes(conversion):
+    if conversion.get('recipe') != 'N' or not conversion.get('artifact_sha256'):
+        raise ValueError('NVFP4 label requires a recipe N conversion manifest with artifact hashes')
+    return conversion['artifact_sha256']
+
+
 def capture(args):
     import mlx.core as mx
     from mlx_lm import load
@@ -297,8 +303,13 @@ def capture(args):
         elif args.label == 'mxfp4':
             preflight = json.loads(Path('results/nonexpert-v1/preflight.json').read_text())
             expected = {name:meta['sha256'] for name,meta in preflight['external_files'].items()}
+        elif args.label == 'nvfp4':
+            conversion = json.loads((model_path/'conversion.json').read_text())
+            check_hashes(model_path, nvfp4_expected_hashes(conversion))
+            expected = {name:digest for name,digest in conversion['artifact_sha256'].items()
+                        if name.endswith('.safetensors')}
         else:
-            raise ValueError('Only pristine C and pinned MXFP4 permitted')
+            raise ValueError('Only pristine C, pinned MXFP4 and recipe N permitted')
         check_hashes(model_path, expected)
     if sha256(model_path/'chat_template.jinja') != manifest['chat_template_sha256']:
         raise ValueError('Model chat template differs from upstream')
@@ -441,14 +452,44 @@ def summarize(receipts):
     return report
 
 
+NVFP4_GATED = ('reasoning', 'final', 'tool_call')
+
+
+def compare_nvfp4(nvfp4, mxfp4):
+    """Pre-registered NVFP4 rule on FP32 KL: mirror of summarize()'s disjoint-interval/mean-gap test."""
+    for receipt in (nvfp4, mxfp4):
+        if receipt['status'] != 'complete' or receipt['updates'] != 0 or len(receipt['repeats']) != 5:
+            raise ValueError('Incomplete baseline')
+    if any(nvfp4[k] != mxfp4[k] for k in ('data_manifest_sha256', 'protocol_sha256')):
+        raise ValueError('Changed teacher contexts')
+    def stats(receipt, region):
+        data = [r['totals']['fp32'][region] for r in receipt['repeats']]
+        values = [d['mean'] for d in data]
+        if len({d['tokens'] for d in data}) != 1:
+            raise ValueError('Changing token counts')
+        return dict(values=values, mean=statistics.mean(values), min=min(values), max=max(values),
+                    range=max(values)-min(values), tokens=data[0]['tokens'])
+    report = {'regions': {}}
+    for region in (*NVFP4_GATED, 'transition', 'aggregate'):
+        n, m = stats(nvfp4, region), stats(mxfp4, region)
+        if n['tokens'] != m['tokens']:
+            raise ValueError('Prediction targets differ')
+        report['regions'][region] = {'gated': region in NVFP4_GATED, 'nvfp4': n, 'mxfp4': m,
+            'nvfp4_minus_mxfp4': n['mean']-m['mean'],
+            'nvfp4_below_mxfp4': n['max'] < m['min'] and m['mean']-n['mean'] > max(n['range'], m['range'])}
+    report['pass'] = all(report['regions'][r]['nvfp4_below_mxfp4'] for r in NVFP4_GATED)
+    return report
+
+
 def main():
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('stage',choices=['prepare','teacher','baseline','summary'])
+    p.add_argument('stage',choices=['prepare','teacher','baseline','summary','compare-nvfp4'])
+    p.add_argument('--nvfp4-receipt',type=Path)
     p.add_argument('--source',type=Path,default=Path('work/source'))
     p.add_argument('--data',type=Path,default=ROOT/'prepared')
     p.add_argument('--cache',type=Path,default=Path('work/calibration-v2-teacher'))
     p.add_argument('--model',type=Path)
-    p.add_argument('--label',choices=['C','mxfp4'])
+    p.add_argument('--label',choices=['C','mxfp4','nvfp4'])
     p.add_argument('--output',type=Path,required=True)
     args=p.parse_args()
     if args.output.exists():
@@ -459,6 +500,9 @@ def main():
         receipts = {label:json.loads((Path('results/calibration-v2')/(label+'-receipt.json')).read_text())
                     for label in ('C','mxfp4')}
         write_new(args.output, summarize(receipts))
+    elif args.stage == 'compare-nvfp4':
+        mx = json.loads(Path('results/calibration-v2/mxfp4-receipt.json').read_text())
+        write_new(args.output, compare_nvfp4(json.loads(args.nvfp4_receipt.read_text()), mx))
     elif args.stage=='prepare':
         prepare(args)
     else:

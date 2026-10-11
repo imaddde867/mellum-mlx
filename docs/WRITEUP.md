@@ -1,6 +1,6 @@
-# Same size, twice the thinking: what 4-bit quantization did to a reasoning model
+# Two 4-bit quantizations, 0.3 GB apart. One made the model think twice as long.
 
-I quantized JetBrains' [Mellum2.1-12B-A2.5B-Thinking](https://huggingface.co/JetBrains/Mellum2.1-12B-A2.5B-Thinking), a 12B mixture-of-experts coding model with 2.5B active parameters, for Apple Silicon with [MLX](https://github.com/ml-explore/mlx). I ran the full 164-task HumanEval+ on the BF16 original and three quantizations, with the same prompts, greedy decoding and an 8,192-token budget that includes the model's reasoning.
+I quantized JetBrains' [Mellum2.1-12B-A2.5B-Thinking](https://huggingface.co/JetBrains/Mellum2.1-12B-A2.5B-Thinking), a 12B mixture-of-experts coding model with 2.5B active parameters, for Apple Silicon with [MLX](https://github.com/ml-explore/mlx). I ran the full 164-task HumanEval+ on the BF16 original and three quantizations. Each run used the same prompts, greedy decoding, and an 8,192-token budget that includes the model's reasoning.
 
 | | Weights | HumanEval+ | Hit the budget | Median completion tokens |
 |---|---:|---:|---:|---:|
@@ -9,38 +9,39 @@ I quantized JetBrains' [Mellum2.1-12B-A2.5B-Thinking](https://huggingface.co/Jet
 | MXFP4 (randmaru) | 6.5 GB | 144 / 164 | 6 | 1,544 |
 | MLX 4-bit (affine, g64) | 6.8 GB | 133 / 164 | 18 | 3,242 |
 
-Both 4-bit models weigh 6.5 to 6.8 GB. One loses 9 tasks against BF16 and the other loses 20. Pass@1 makes that look like ordinary quantization noise. It isn't, and you can see why in how long the model takes to get to an answer.
+Both 4-bit builds fit on a 16 GB Mac. One loses 9 tasks to BF16 and the other loses 20, and on a pass@1 table that gap looks like ordinary quantization damage. The completion lengths tell a different story.
 
 ![HumanEval+ tasks solved within a token budget](assets/solved-by-budget.svg)
 
 ## The 4-bit model second-guesses itself
 
-On the 144 tasks where both runs finished, the affine 4-bit model's completions were **2.2× longer than BF16's** (paired geometric mean; Wilcoxon p ≈ 5×10⁻²⁵). The 6-bit and MXFP4 runs were within a few percent of BF16 (1.04× and 0.98×, neither significant).
+On the 144 tasks where both runs finished, the affine 4-bit model's completions were **2.2× longer than BF16's** (paired geometric mean; Wilcoxon p ≈ 5×10⁻²⁵). The 6-bit and MXFP4 runs stayed within a few percent of BF16 (1.04× and 0.98×, neither significant).
 
-The extra tokens are mostly hesitation. The word "But" shows up 22 times per reasoning trace on 4-bit, against 8 or 9 for every other build. "Actually" shows up 3.9 times against 1.4 to 2.2. All 18 budget truncations ran out mid-reasoning, before any code was written.
+Most of the extra tokens are hesitation. The word "But" shows up 22 times per reasoning trace on 4-bit, against 8 or 9 for every other build, and "Actually" 3.9 times against 1.4 to 2.2. All 18 budget truncations ran out mid-reasoning, before any code was written.
 
-Cap the budget at 2,048 tokens and the gap stops looking like noise. BF16 solves 120 tasks, 6-bit 108, MXFP4 109, affine 4-bit **21**.
-
-So at this size the quality loss mostly shows up as a slower path to the answer. You'd see it as worse speed (more tokens per solved task) and as worse quality (truncation under any realistic budget). A plain pass@1 table blends the two together.
+Cap the budget at 2,048 tokens and the scores look very different. BF16 solves 120 tasks, 6-bit 108, MXFP4 109, and affine 4-bit **21**.
 
 ## Why it matters for local models
 
-On a laptop, tokens are time. At 50 to 65 tokens/s on an M4, an extra 1,700 tokens is roughly half a minute per answer. A quantization that keeps its score with a generous budget can still be much worse to use. If you quantize a reasoning model, report completion length, or pass@budget, next to accuracy.
+On a laptop, tokens are time. At 50 to 65 tokens/s on an M4, an extra 1,700 tokens adds roughly half a minute to every answer. A quantization can keep its score under a generous budget and still be much worse to use. If you quantize a reasoning model, report completion length or pass@budget next to accuracy.
 
 ## What helped and what didn't
 
-The biggest factor was the expert format. MXFP4 stores each block of 32 weights as 4-bit floats with one shared 8-bit exponent. It comes out *smaller* than affine 4-bit with group 64 (6.5 vs 6.8 GB) and keeps BF16's reasoning length. Most of this model's weights sit in its 64 experts, and how those are rounded matters more than any other choice I tested.
+The expert format mattered most. MXFP4 stores each block of 32 weights as 4-bit floats with one shared 8-bit exponent. It comes out *smaller* than affine 4-bit with group 64 (6.5 vs 6.8 GB) and keeps BF16's reasoning length. Most of this model's weights sit in its 64 experts.
 
-Raising attention precision helped a weak base. Keeping attention at 6-bit on top of affine 4-bit experts recovered most of the loss on a 24-task screen. It only tied MXFP4 (22 vs 21 tasks), was 10% larger, and took 24% longer to generate.
+Attention precision only helped when the experts were already damaged. At 6-bit on top of affine 4-bit experts, it recovered most of the loss on a 24-task screen and drew level with MXFP4 (22 vs 21 tasks), while being 10% larger and 24% slower to generate. At 8-bit on top of MXFP4 experts, it bought nothing: 145/164 against 144 (p = 1.0), and 14 to 17% slower decoding on the M4. In a 2.5B-active MoE, attention is about a quarter of the weights read for every token, so its extra bits cost speed on every token. I had written the ship rule down before that run, and it failed the speed gate.
 
-It didn't help a good base. My last experiment kept MXFP4 experts and moved attention to 8-bit (6.8 GB). I wrote the ship rule down before running it. It scored 145/164 against MXFP4's 144 (7 vs 6 discordant tasks, p = 1.0), a tie. On the M4 it decoded 14 to 17% slower. In a 2.5B-active MoE, attention is about a quarter of the weights read for every generated token, so extra attention bits cost speed on every token whether or not they buy accuracy. It failed the speed gate, so I didn't ship it.
+A bounded DWQ calibration run on scales and biases made held-out loss worse and moved task results by no more than noise.
 
-Calibration didn't help either. A bounded DWQ distillation run on scales and biases made held-out loss worse and didn't change task results beyond noise.
+## What I shipped
 
-Where that leaves my releases. The [6-bit](https://huggingface.co/imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit-g64) (146/164, 9.9 GB) solves the most tasks, but MXFP4 ties it and decodes 41% faster on the M4. So for 16 GB Macs I tried one more format, NVFP4, which uses groups of 16 weights with FP8 scales. It measured about 30% closer to BF16 than MXFP4 by KL divergence on held-out reasoning, answer and tool-call traces, at 95 to 96% of MXFP4's decode speed, and I [published it](https://huggingface.co/imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-nvfp4). It tied MXFP4 on HumanEval+ (145 vs 144) and wrote 12% longer completions, though, so MXFP4 still gives the fastest finished answers. Being closer to the original isn't the same as being better to use, and this benchmark can't tell those two apart.
+The [6-bit](https://huggingface.co/imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit-g64) (146/164, 9.9 GB) solves the most tasks, but MXFP4 ties it and decodes 41% faster on the M4. So for 16 GB Macs I tried one more format. [NVFP4](https://huggingface.co/imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-nvfp4) uses groups of 16 weights with FP8 scales. It measured about 30% closer to BF16 than MXFP4 by KL divergence, on held-out reasoning, answer and tool-call traces, and decoded at 95 to 96% of MXFP4's speed. It tied MXFP4 on HumanEval+ (145 vs 144). It's my pick for 16 GB when fidelity matters. MXFP4 still gives the fastest finished answers.
+
+## What I can't explain yet
+
+I expected NVFP4 to settle the length question. It's measurably closer to BF16 than MXFP4, so it should think more like BF16. Instead it writes completions 1.09× as long as BF16's (Wilcoxon p = 0.0005), while MXFP4, which is further from BF16, stays at 0.98×. So distance from the original distribution doesn't predict how long this model deliberates. I don't know which part of the rounding pushes a model toward the extra "But"s.
 
 ## Limits
 
-- One model, one benchmark, one greedy sample per task. HumanEval+ may overlap the training data. Use this for regression testing, not as a general coding score.
-- I measured the length change. I didn't find its numerical cause. "Affine 4-bit hurts this MoE's experts more than MXFP4 does" fits the data but isn't proven.
-- Raw responses, per-task outcomes, the scripts and every failed experiment are in [the repository](https://github.com/imaddde867/mellum-mlx). Rerun `python scripts/length_audit.py results/coding/humaneval-plus` to reproduce the statistics.
+- One model, one benchmark, one greedy sample per task. HumanEval+ may overlap the training data, so treat these as regression results, not a general coding score.
+- Raw responses, per-task outcomes, the scripts and every failed experiment are in [the repository](https://github.com/imaddde867/mellum-mlx). `python scripts/length_audit.py results/coding/humaneval-plus` reproduces the statistics.

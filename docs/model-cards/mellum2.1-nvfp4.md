@@ -54,7 +54,7 @@ Always set `--max-tokens`. Reasoning and the answer share the budget, and the se
 
 ## Which build to use
 
-- **This NVFP4:** the closest to BF16 at about 7 GB. A good default for 16 GB Macs if output quality matters most.
+- **This NVFP4:** the closest to BF16 of the ~7 GB builds measured, and the default pick for 16 GB Macs.
 - **[MXFP4](https://huggingface.co/randmaru/Mellum2.1-12B-A2.5B-Thinking-mlx-mxfp4):** the fastest answers. It decodes about 5% faster, and on HumanEval+ it wrote 12% shorter completions, so finished answers come sooner.
 - **[6-bit](https://huggingface.co/imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit-g64):** for 24 GB or more (9.87 GB, 146/164 on HumanEval+).
 

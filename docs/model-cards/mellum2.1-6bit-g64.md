@@ -46,10 +46,11 @@ Always set `--max-tokens`. Reasoning and the answer share the budget, and the se
 |---|---:|---:|---:|---:|---:|---:|
 | BF16 original | 24.3 GB | 153 (93.3%) | 3 | 1,571 | n/a | n/a |
 | **This 6-bit** | **9.87 GB** | **146 (89.0%)** | **3** | **1,521** | **47.2 / 46.0 / 42.8** | **10.5 GB** |
+| [NVFP4](https://huggingface.co/imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-nvfp4) | 6.84 GB | 145 (88.4%) | 6 | 1,674 | 63.9 / 61.4 / 55.8 | 7.6 GB |
 | [randmaru MXFP4](https://huggingface.co/randmaru/Mellum2.1-12B-A2.5B-Thinking-mlx-mxfp4) | 6.46 GB | 144 (87.8%) | 6 | 1,544 | 66.7 / 63.6 / 57.4 | 7.2 GB |
 | Affine 4-bit (not released) | 6.84 GB | 133 (81.1%) | 18 | 3,242 | n/a | n/a |
 
-HumanEval+ setup: all 164 tasks with expanded tests, one CUDA GPU, upstream chat template, greedy decoding, 8,192-token budget that includes reasoning, a pinned EvalPlus container, one sample per task. M4 setup: 14-inch MacBook Pro with 16 GB. 6-bit and MXFP4 ran back to back, with 256 output tokens and three trials after warmup.
+HumanEval+ setup: all 164 tasks with expanded tests, one CUDA GPU, upstream chat template, greedy decoding, 8,192-token budget that includes reasoning, a pinned EvalPlus container, one sample per task. M4 setup: 14-inch MacBook Pro with 16 GB. 6-bit and MXFP4 ran back to back, with 256 output tokens and three trials after warmup. NVFP4 was measured in a separate session, interleaved with MXFP4 (which averaged 67.2 / 64.3 / 58.3 there).
 
 - **6-bit and MXFP4 are statistically tied** (9 vs 7 discordant tasks, McNemar p = 0.80). Both are below BF16.
 - **Affine 4-bit made the model think 2.2× longer** and run out of budget mid-reasoning on 18 tasks, so it isn't released. [Write-up](https://github.com/imaddde867/mellum-mlx/blob/main/docs/WRITEUP.md).

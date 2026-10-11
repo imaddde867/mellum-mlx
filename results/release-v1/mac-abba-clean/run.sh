@@ -27,4 +27,3 @@ for ctx in 1024 4096 16384; do
 done
 echo "done $(date -u +%FT%TZ)" >> $L
 echo; .venv/bin/python results/release-v1/mac-abba/summary.py $OUT
-echo "Finished. Tell Claude: 'clean run done'."

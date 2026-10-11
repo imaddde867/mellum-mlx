@@ -21,7 +21,7 @@ tags:
 
 JetBrains' [Mellum2.1 Thinking](https://huggingface.co/JetBrains/Mellum2.1-12B-A2.5B-Thinking) coding model (12B mixture-of-experts, 2.5B active) as native MLX 6-bit, group size 64, with 8-bit routers. It's benchmarked on the full HumanEval+ against BF16 and other quantizations, and measured on a 16 GB M4 MacBook Pro.
 
-**Code, raw results and write-up:** [github.com/imaddde867/mellum-mlx](https://github.com/imaddde867/mellum-mlx)
+**Code and raw results:** [github.com/imaddde867/mellum-mlx](https://github.com/imaddde867/mellum-mlx)
 
 ## Quickstart
 
@@ -53,7 +53,7 @@ Always set `--max-tokens`. Reasoning and the answer share the budget, and the se
 HumanEval+ setup: all 164 tasks with expanded tests, one CUDA GPU, upstream chat template, greedy decoding, 8,192-token budget that includes reasoning, a pinned EvalPlus container, one sample per task. M4 setup: 14-inch MacBook Pro with 16 GB. 6-bit and MXFP4 ran back to back, with 256 output tokens and three trials after warmup. NVFP4 was measured in a separate session, interleaved with MXFP4 (which averaged 67.2 / 64.3 / 58.3 there).
 
 - **6-bit and MXFP4 are statistically tied** (9 vs 7 discordant tasks, McNemar p = 0.80). Both are below BF16.
-- **Affine 4-bit made the model think 2.2× longer** and run out of budget mid-reasoning on 18 tasks, so it isn't released. [Write-up](https://github.com/imaddde867/mellum-mlx/blob/main/docs/WRITEUP.md).
+- **Affine 4-bit made the model think 2.2× longer** and run out of budget mid-reasoning on 18 tasks, so it isn't released.
 - These are single-run regression results. HumanEval+ may overlap the training data.
 
 ## Which build to use

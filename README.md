@@ -8,8 +8,6 @@ MLX builds of JetBrains' [Mellum2.1-12B-A2.5B-Thinking](https://huggingface.co/J
 [![Checks](https://github.com/imaddde867/mellum-mlx/actions/workflows/checks.yml/badge.svg)](https://github.com/imaddde867/mellum-mlx/actions/workflows/checks.yml)
 [![License: MIT](https://img.shields.io/badge/code-MIT-lightgrey)](LICENSE)
 
-**Write-up:** [Two 4-bit quantizations, 0.3 GB apart. One made the model think twice as long.](docs/WRITEUP.md)
-
 ## Quickstart
 
 ```sh
@@ -46,7 +44,7 @@ HumanEval+ ran on one CUDA GPU: all 164 tasks, upstream chat template, greedy de
 
 ## Findings
 
-1. **Affine 4-bit makes the model think 2.2× longer.** Its completions were 2.2× BF16's length on the same tasks (Wilcoxon p = 5×10⁻²⁵) and ran out of budget mid-reasoning on 18 tasks. MXFP4 is smaller and stays at BF16's length. Pass@1 alone hides this. [Write-up](docs/WRITEUP.md).
+1. **Affine 4-bit makes the model think 2.2× longer.** Its completions were 2.2× BF16's length on the same tasks (Wilcoxon p = 5×10⁻²⁵) and ran out of budget mid-reasoning on 18 tasks. MXFP4 is smaller and stays at BF16's length. Pass@1 alone hides this.
 2. **Lower KL came with longer answers.** NVFP4 is about 30% closer to BF16 than MXFP4 by KL divergence and decodes at 95 to 96% of its speed, yet it only tied on HumanEval+ and wrote 12% longer completions.
 3. **Extra attention bits cost speed in a small-active MoE.** Attention is about a quarter of the weights read for each token. Raising it to 8-bit on top of MXFP4 cost 14 to 17% of decode speed with no measurable accuracy gain.
 4. **MLX-LM 0.32.0 silently drops tool calls it can't parse.** The response keeps `finish_reason: "tool_calls"` with an empty `tool_calls` list. A tested patch is in [patches/](patches/), and an upstream fix is open in [mlx-lm#1957](https://github.com/ml-explore/mlx-lm/pull/1957).
@@ -77,7 +75,7 @@ Conversion, generation and evaluation write receipts that record the source revi
 | --- | --- |
 | [`scripts/`](scripts/) | Conversion, validation, HumanEval+ generation and evaluation, M4 benchmarks, analysis |
 | [`results/`](results/) | Raw responses, per-task outcomes, benchmark JSON, receipts |
-| [`docs/`](docs/) | [Results](docs/RESULTS.md), [write-up](docs/WRITEUP.md), [release plan](docs/PLAN.md), [unshipped experiments](docs/research/) |
+| [`docs/`](docs/) | [Results](docs/RESULTS.md), [coding protocol](docs/CODING_PROTOCOL.md), [unshipped experiments](docs/research/) |
 | [`patches/`](patches/) | MLX-LM serving and tool-call fixes used in agent trials |
 | [`tests/`](tests/) | Unit tests for conversion recipes, receipts and evaluation guards |
 

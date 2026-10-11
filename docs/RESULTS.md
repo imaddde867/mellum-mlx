@@ -61,7 +61,7 @@ A temporary loopback-only MLX-LM server generated a valid `add(2, 3)` tool call,
 
 ## M4 Metal comparator measurements
 
-14-inch MacBook Pro, Apple M4 (10 CPU / 10 GPU cores), 16 GB unified memory, macOS 27.0.1, AC power. Lid closed; the user reports Amphetamine keep-awake. MLX 0.32.3 / MLX-LM 0.32.0. The pinned external MXFP4 artifact passed all checksums in its public receipt. Our native 4-bit conversion has completed transfer and checksum validation; its measurements are running and are not included in this table.
+14-inch MacBook Pro, Apple M4 (10 CPU / 10 GPU cores), 16 GB unified memory, macOS 27.0.1, AC power. Lid closed with a keep-awake utility running. MLX 0.32.3 / MLX-LM 0.32.0. The pinned external MXFP4 artifact passed all checksums in its public receipt. Our native 4-bit conversion has completed transfer and checksum validation; its measurements are running and are not included in this table.
 
 Same synthetic throughput protocol as CUDA: warmup plus three measured greedy trials, 256 output tokens, prefill step 512. All trials reached the output budget. A separate artifact transfer ran concurrently; these are preliminary measurements rather than isolated performance rankings.
 
@@ -178,7 +178,7 @@ The [bounded diagnostic](research/DWQ_DIAGNOSTIC.md) completed 32 checkpointed u
 
 ## Final experiment: MXFP4 + 8-bit attention (not shipped)
 
-Pre-registered in [PLAN.md](PLAN.md) before running. Recipe M = randmaru's recipe (MXFP4 g32, 8-bit g64 routers) plus affine 8-bit g64 attention q/k/v/o, converted from pinned BF16 on the CUDA GPU (6,772,975,475 weight bytes; loads with stock MLX-LM 0.32.0; [validation receipt](../results/release-v1/mxfp4-a8-validation.json)).
+Decision rule committed before running. Recipe M = randmaru's recipe (MXFP4 g32, 8-bit g64 routers) plus affine 8-bit g64 attention q/k/v/o, converted from pinned BF16 on the CUDA GPU (6,772,975,475 weight bytes; loads with stock MLX-LM 0.32.0; [validation receipt](../results/release-v1/mxfp4-a8-validation.json)).
 
 **HumanEval+** (same frozen protocol and CUDA GPU as the table above): 145/164 counting `plus_status` like the earlier rows. The EvalPlus summary prints 0.878 because HumanEval/92 passes the expanded tests but not the base tests (BF16 shows the same quirk). Paired versus MXFP4: 7 tasks only M, 6 only MXFP4, exact McNemar p = 1.0. Versus 6-bit: 5 vs 6, p = 1.0. Versus BF16: 1 vs 9, p = 0.02. Completion length 1.05x MXFP4 (Wilcoxon p = 0.11); 3 budget truncations; solved within 2,048 / 4,096 tokens: 97 / 140.
 
@@ -197,7 +197,7 @@ Provenance note: the candidate's CUDA GPU run happened after an unattended NVIDI
 
 ## NVFP4 one-shot
 
-Pre-registered in [PLAN.md](PLAN.md#nvfp4-one-shot-pre-registered-2026-10-11) before any NVFP4 model existed. Recipe N: NVFP4 (4-bit, group 16, FP8 scales) on every eligible module including attention, experts, embeddings and head; routers affine 8-bit g64. Converted from pinned BF16 on the CUDA GPU with stock MLX 0.32.3 / MLX-LM 0.32.0. **6,836,663,555 weight bytes** (MXFP4: 6.46 GB). Loads and generates with stock MLX-LM on CUDA; the [validation receipt](../results/release-v1/nvfp4-validation.json) and [conversion manifest](../results/release-v1/nvfp4-conversion.json) are committed. NVFP4 kernels (`quantize`, `quantized_matmul`, `gather_qmm`) were checked on both Metal and CUDA before conversion.
+Decision rule committed before any NVFP4 model existed. Recipe N: NVFP4 (4-bit, group 16, FP8 scales) on every eligible module including attention, experts, embeddings and head; routers affine 8-bit g64. Converted from pinned BF16 on the CUDA GPU with stock MLX 0.32.3 / MLX-LM 0.32.0. **6,836,663,555 weight bytes** (MXFP4: 6.46 GB). Loads and generates with stock MLX-LM on CUDA; the [validation receipt](../results/release-v1/nvfp4-validation.json) and [conversion manifest](../results/release-v1/nvfp4-conversion.json) are committed. NVFP4 kernels (`quantize`, `quantized_matmul`, `gather_qmm`) were checked on both Metal and CUDA before conversion.
 
 **Verdict: all three gates pass.** Fidelity and HumanEval+ passed. On a clean, interleaved M4 run (68 W charger, idle machine) NVFP4 decoded at 95.1 / 95.5 / 95.7% of MXFP4 against the 95% gate, with every round within 0.2 points. Two earlier M4 runs were invalidated by power limits; see below.
 

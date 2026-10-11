@@ -24,7 +24,7 @@ MLX allocator peak was **31,106,296,128 bytes**. The existing preflight itself r
 
 This is a failed memory qualification under the requested native workaround, not the prior graph-cache error. The S longest case, initial/transition validation and first-12/subsequent sequence probes were not reached. Complete parameter integrity could not be evaluated after the CUDA exception; no evaluation or array serialization was attempted afterward. On-disk pristine weights were rechecked separately without loading the model.
 
-Per the user's explicit stop rule, no retries, allocator/checkpoint changes, clipped trajectories, detached history, graph-cache sweep, tolerance changes or alternative runtime were attempted. This result does not prove that every graph-disabled design would fail; it rejects this unchanged qualification on the available hardware.
+Per the predeclared stop rule, no retries, allocator/checkpoint changes, clipped trajectories, detached history, graph-cache sweep, tolerance changes or alternative runtime were attempted. This result does not prove that every graph-disabled design would fail; it rejects this unchanged qualification on the available hardware.
 
 ## Restart support and limits
 

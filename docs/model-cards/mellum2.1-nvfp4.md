@@ -21,7 +21,7 @@ tags:
 
 JetBrains' [Mellum2.1 Thinking](https://huggingface.co/JetBrains/Mellum2.1-12B-A2.5B-Thinking) coding model (12B mixture-of-experts, 2.5B active) in MLX NVFP4, sized for 16 GB Macs. NVFP4 stores 4-bit floats in groups of 16 weights with FP8 scales, and the MoE routers stay at 8-bit. At 6.84 GB it is **about 30% closer to the BF16 original than MXFP4**, the other ~7 GB build, and decodes at 95 to 96% of MXFP4's speed on an M4.
 
-**Code, raw results and write-up:** [github.com/imaddde867/mellum-mlx](https://github.com/imaddde867/mellum-mlx)
+**Code and raw results:** [github.com/imaddde867/mellum-mlx](https://github.com/imaddde867/mellum-mlx)
 
 ## Quickstart
 

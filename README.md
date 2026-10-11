@@ -2,7 +2,7 @@
 
 Benchmarked MLX quantizations of JetBrains' [Mellum2.1-12B-A2.5B-Thinking](https://huggingface.co/JetBrains/Mellum2.1-12B-A2.5B-Thinking) (12B MoE, 2.5B active) for Apple Silicon. Every number below comes from a full 164-task HumanEval+ run or a measured M4 MacBook Pro, with raw responses and receipts in this repo.
 
-**Model:** [imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit-g64](https://huggingface.co/imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit-g64) (9.87 GB, MLX 6-bit affine, group 64).
+**Model:** [imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit-g64](https://huggingface.co/imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit-g64) (9.87 GB, MLX 6-bit affine, group 64). Also published as [mlx-community/Mellum2.1-12B-A2.5B-Thinking-6bit](https://huggingface.co/mlx-community/Mellum2.1-12B-A2.5B-Thinking-6bit) (same bytes).
 
 ```sh
 python -m pip install 'mlx==0.32.3' 'mlx-lm==0.32.0'

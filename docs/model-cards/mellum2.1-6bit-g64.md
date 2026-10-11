@@ -12,53 +12,23 @@ tags:
 - coding
 - agents
 - mellum
+- moe
+- thinking
+- 6-bit
 ---
 
-# Mellum2.1 Thinking, MLX 6-bit (group 64), benchmarked
+# Mellum2.1-12B-A2.5B-Thinking · MLX 6-bit
 
-JetBrains' Mellum2.1 Thinking (12B MoE, 2.5B active) converted to native MLX 6-bit affine, group size 64, with the upstream 8-bit router policy. JetBrains created and trained the model. This release adds a measured comparison against the BF16 original and other quantizations, plus serving settings tested for coding agents. No fine-tuning or calibration.
+JetBrains' [Mellum2.1 Thinking](https://huggingface.co/JetBrains/Mellum2.1-12B-A2.5B-Thinking) coding model (12B mixture-of-experts, 2.5B active) as native MLX 6-bit, group size 64, with 8-bit routers. It's benchmarked on the full HumanEval+ against BF16 and other quantizations, and measured on a 16 GB M4 MacBook Pro.
 
-## What the measurements show
+**Code, raw results and write-up:** [github.com/imaddde867/mellum-mlx](https://github.com/imaddde867/mellum-mlx)
 
-164 HumanEval+ tasks (expanded tests), same RTX 5090, same prompts, upstream chat template, greedy decoding, 8,192 completion tokens, pinned EvalPlus container. One sample per task.
-
-| Candidate | Weights | HumanEval+ | Solved within 4,096 tokens | Median completion tokens | Completion length vs BF16 (paired) |
-|---|---:|---:|---:|---:|---:|
-| BF16 original | 24.3 GB | 153/164 (93.3%) | 148 | 1,571 | 1.00x |
-| **This 6-bit** | **9.87 GB** | **146/164 (89.0%)** | **141** | **1,521** | **1.04x** |
-| randmaru MXFP4 | 6.46 GB | 144/164 (87.8%) | 139 | 1,544 | 0.98x |
-| Our naive affine 4-bit (not released) | 6.84 GB | 133/164 (81.1%) | 91 | 3,242 | 2.22x |
-
-How to read this:
-- 6-bit and MXFP4 are statistically tied: 9 tasks passed only 6-bit, 7 only MXFP4 (exact McNemar p = 0.80). This card does not claim 6-bit is better than MXFP4.
-- Both are measurably below BF16 (6-bit: 1 vs 8 discordant tasks, p = 0.039).
-- Both keep BF16's completion length. Our plain affine 4-bit did not: its completions, mostly reasoning, were 2.2x longer on the same tasks and ran out of budget mid-thought on 18. That is why it isn't released. The cause is not established.
-- These are single-run regression results. Training overlap with HumanEval+ is possible. They do not measure agent reliability.
-
-Raw responses, per-task outcomes, provenance and scripts: [github.com/imaddde867/mellum-mlx](https://github.com/imaddde867/mellum-mlx).
-
-## Which Mac
-
-Measured on a 14-inch MacBook Pro, M4, 16 GB. This 6-bit and MXFP4 ran back to back in one session: greedy decoding, 256 output tokens, mean of three trials after warmup.
-
-| | Decode tok/s 1K / 4K / 16K | TTFT at 16K | MLX peak at 16K |
-|---|---:|---:|---:|
-| This 6-bit | 47.2 / 46.0 / 42.8 | 32.7 s | 10.51 GB |
-| [randmaru MXFP4](https://huggingface.co/randmaru/Mellum2.1-12B-A2.5B-Thinking-mlx-mxfp4) | 66.7 / 63.6 / 57.4 | 31.6 s | 7.19 GB |
-
-- **Most people should use MXFP4.** It ties this model on HumanEval+, decodes 34–41% faster and fits a 16 GB Mac comfortably.
-- **Use this 6-bit** if you have 24 GB or more and want the quantization closest to BF16 (BF16 solved 8 tasks it missed, versus 10 for MXFP4). That edge is not statistically significant.
-- **16 GB: not recommended.** Swap grew from 1.6 to 4.1 GB during the 6-bit run.
-- Long context is cheap on memory. 21 of 28 layers use a 1,024-token sliding window, so the KV cache is about 14 KB per token (about 0.5 GB at 32K).
-
-Why quantization format matters for this reasoning model: [write-up](https://github.com/imaddde867/mellum-mlx/blob/main/docs/WRITEUP.md).
-
-## Use it
+## Quickstart
 
 ```sh
-python -m pip install 'mlx==0.32.3' 'mlx-lm==0.32.0'
+pip install 'mlx-lm==0.32.0'
 
-# Chat (JetBrains' recommended sampling)
+# Chat, with JetBrains' recommended sampling
 python -m mlx_lm generate --model imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit-g64 \
   --prompt 'Find the bug: def mean(xs): return sum(xs) / len(xs) - 1' \
   --temp 0.6 --top-p 0.95 --top-k 20 --max-tokens 16384
@@ -68,33 +38,39 @@ python -m mlx_lm server --model imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit-g
   --temp 1.0 --max-tokens 16384
 ```
 
-- **Set `--max-tokens`.** The MLX-LM server defaults to 512 tokens. That cuts a thinking model off before it answers or finishes a tool call. Reasoning and the answer share the budget.
-- **Don't use greedy (`--temp 0`) for real work.** JetBrains uses temperature 0.6 / top-p 0.95 / top-k 20 for chat, and temperature 1.0 with up to 16K tokens per turn for agents.
+Always set `--max-tokens`. Reasoning and the answer share the budget, and the server defaults to 512 tokens, which cuts a thinking model off before it answers.
 
-## Known issues with MLX-LM 0.32.0 serving
+## Benchmarks
 
-- **Tool calls that fail to parse are dropped silently.** That covers invalid JSON, and also valid-looking JSON with a literal newline inside a string. The response still says `finish_reason: "tool_calls"` but `tool_calls` is empty, so agents can't see or repair the mistake. In our trials this happened twice, both times from an unescaped quote in code. A tested patch that returns the failed call text to the client is in the GitHub repo; an equivalent upstream fix is open as [mlx-lm#1957](https://github.com/ml-explore/mlx-lm/pull/1957).
-- **Reasoning isn't returned to the template.** Mellum's template replays prior reasoning in tool loops only from `reasoning_content`. The server returns it as `reasoning`. Clients that echo assistant messages back unchanged lose the model's earlier thinking between tool steps.
+| Build | Weights | HumanEval+ | Budget hits | Median tokens | M4 decode tok/s, 1K / 4K / 16K | M4 peak memory |
+|---|---:|---:|---:|---:|---:|---:|
+| BF16 original | 24.3 GB | 153 (93.3%) | 3 | 1,571 | n/a | n/a |
+| **This 6-bit** | **9.87 GB** | **146 (89.0%)** | **3** | **1,521** | **47.2 / 46.0 / 42.8** | **10.5 GB** |
+| [randmaru MXFP4](https://huggingface.co/randmaru/Mellum2.1-12B-A2.5B-Thinking-mlx-mxfp4) | 6.46 GB | 144 (87.8%) | 6 | 1,544 | 66.7 / 63.6 / 57.4 | 7.2 GB |
+| Affine 4-bit (not released) | 6.84 GB | 133 (81.1%) | 18 | 3,242 | n/a | n/a |
 
-## Repository-agent trial (one repo, not a reliability claim)
+HumanEval+ setup: all 164 tasks with expanded tests, one RTX 5090, upstream chat template, greedy decoding, 8,192-token budget that includes reasoning, a pinned EvalPlus container, one sample per task. M4 setup: 14-inch MacBook Pro with 16 GB. 6-bit and MXFP4 ran back to back, with 256 output tokens and three trials after warmup.
 
-Five bounded trials on one small Python repository, run on CUDA through the MLX-LM 0.32.0 server. Greedy decoding, 8,192 tokens per turn, up to 12 turns, fixed tests in an offline container.
+- **6-bit and MXFP4 are statistically tied** (9 vs 7 discordant tasks, McNemar p = 0.80). Both are below BF16.
+- **Affine 4-bit made the model think 2.2× longer** and run out of budget mid-reasoning on 18 tasks, so it isn't released. [Write-up](https://github.com/imaddde867/mellum-mlx/blob/main/docs/WRITEUP.md).
+- These are single-run regression results. HumanEval+ may overlap the training data.
 
-- **Solved (1):** a retrieval-limit type check. A 2-line patch; 36/36 fixed tests pass.
-- **Not solved (4):** a mutation-routing fix. What went wrong:
-  - In two turns, the model emitted invalid tool-call JSON (an unescaped quote inside code). The server discarded it silently, still reporting `finish_reason: "tool_calls"`. One of those ended a trial.
-  - One edit introduced a syntax error the model didn't repair.
-  - One fix used substring matching, which misses "changing" and "deleting".
-  - Two turns spent the whole 8,192-token budget thinking.
-- **Harness limitations in these runs:** greedy decoding, prior reasoning not passed back between steps, and file contents double-escaped in the early trials. The post-publication rerun used a separate patched MLX-LM environment, temperature 1.0, 16K tokens per turn and `reasoning_content` replay: **1 success out of 3 seeds (0, 1, 2)**. Seed 1 passed all 36 fixed tests; seed 0 exhausted its turn budget and seed 2 left a syntax error followed by an invalid repair call. All rerun transcripts and outcomes are retained. This is one task, not a general reliability estimate.
+## Which build to use
 
-Every transcript is retained in the GitHub repo. This is not an agent success rate.
+- **Most Macs, including 16 GB: [MXFP4](https://huggingface.co/randmaru/Mellum2.1-12B-A2.5B-Thinking-mlx-mxfp4).** Same quality as this build, 34 to 41% faster, 3.3 GB less memory.
+- **24 GB or more, and you want the closest to BF16: this 6-bit.** BF16 solved 8 tasks this build missed, against 10 for MXFP4. The difference isn't significant.
+- **16 GB: not recommended.** Swap grew from 1.6 to 4.1 GB during the 6-bit run.
+- Long context is cheap. 21 of 28 layers use a 1,024-token sliding window, so the KV cache is about 0.5 GB at 32K tokens.
+
+## Known MLX-LM 0.32.0 serving issues
+
+- **Unparseable tool calls are dropped silently.** The response still reports `finish_reason: "tool_calls"`, but with an empty `tool_calls` list. A tested patch is in the GitHub repo, and an upstream fix is open in [mlx-lm#1957](https://github.com/ml-explore/mlx-lm/pull/1957).
+- **Prior reasoning is lost in tool loops.** The template replays reasoning only from `reasoning_content`, but the server returns it as `reasoning`.
+- A one-repository agent trial passed 1 of 3 seeds after patches. That isn't a reliability claim; the transcripts are in the repo.
 
 ## Provenance
 
-- Source: `JetBrains/Mellum2.1-12B-A2.5B-Thinking` @ `92ddae9fc7665e9f801d141d2e5a6b2caf2460c4`, Apache-2.0.
-- Quantization: affine 6-bit, group 64; routers 8-bit; other weights BF16. Produced with `mlx_lm.convert`, the standard recipe; no novel method.
-- Serialized weights: 9,873,101,418 bytes. Conversion receipt with SHA-256 for every file: [conversion.json](https://github.com/imaddde867/mellum-mlx/blob/main/results/provenance/mellum2.1-affine-6bit-g64/conversion.json).
-- Runtime tested: MLX 0.32.3, MLX-LM 0.32.0, Python 3.12.
-
-[JetBrains original](https://huggingface.co/JetBrains/Mellum2.1-12B-A2.5B-Thinking) · [MLX-LM](https://github.com/ml-explore/mlx-lm) · [randmaru MXFP4](https://huggingface.co/randmaru/Mellum2.1-12B-A2.5B-Thinking-mlx-mxfp4)
+- Source: `JetBrains/Mellum2.1-12B-A2.5B-Thinking` at `92ddae9fc7665e9f801d141d2e5a6b2caf2460c4`, Apache-2.0. JetBrains created and trained the model.
+- Quantization: standard `mlx_lm` affine 6-bit with group size 64 and 8-bit routers; other weights stay BF16. No fine-tuning or calibration.
+- 9,873,101,418 bytes of weights. The SHA-256 of every file is in [conversion.json](https://github.com/imaddde867/mellum-mlx/blob/main/results/provenance/mellum2.1-affine-6bit-g64/conversion.json).
+- Tested with MLX 0.32.3, MLX-LM 0.32.0 and Python 3.12. The same files are also at [mlx-community/Mellum2.1-12B-A2.5B-Thinking-6bit](https://huggingface.co/mlx-community/Mellum2.1-12B-A2.5B-Thinking-6bit).

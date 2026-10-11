@@ -58,7 +58,7 @@ Always set `--max-tokens`. Reasoning and the answer share the budget, and the se
 - **[MXFP4](https://huggingface.co/randmaru/Mellum2.1-12B-A2.5B-Thinking-mlx-mxfp4):** the fastest answers. It decodes about 5% faster, and on HumanEval+ it wrote 12% shorter completions, so finished answers come sooner.
 - **[6-bit](https://huggingface.co/imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit-g64):** for 24 GB or more (9.87 GB, 146/164 on HumanEval+).
 
-On a 16 GB Mac, close memory-heavy apps before long-context work: the 16K peak is 7.57 GB.
+Long context fits on 16 GB. Measured MLX peak memory is 7.57 GB at 16K, 8.33 GB at 64K and 9.40 GB at 128K. Decode drops to 39.6 tok/s at 64K and 29.0 tok/s at 128K. Reading the prompt takes about 3 minutes at 64K and 9 minutes at 128K on an M4, so close memory-heavy apps before very long sessions.
 
 ## Known MLX-LM 0.32.0 serving issues
 

@@ -263,3 +263,14 @@ TTFT was equal, at 1.58 / 7.02 / 31.5 s for MXFP4 and 1.60 / 7.08 / 31.8 s for N
 Limitations: single greedy HumanEval+ run; possible training overlap; KL measured on a 32-trajectory Python pilot corpus; the MXFP4 HumanEval+ and calibration baselines predate the GPU driver update, while the NVFP4 runs came after it.
 
 Process notes: the first calibration run failed on a relative path and was re-run from the repository root. The scorer hash differs from the MXFP4 receipt because an `nvfp4` label and a `compare-nvfp4` stage were added; the scoring path is unchanged. `scripts/pair_audit.py` is new. The manifest summary moved into a tested `quantization_summary` helper. Captured NVFP4 logits are kept on the CUDA host under `~/mellum-nvfp4-evidence/`.
+
+## NVFP4 long context on the M4
+
+One warmup and one measured trial per context, on the 68 W charger, 256 output tokens, synthetic repeated-code prompt. The 128K prompt is 130,816 tokens, so prompt plus output stays within the model's 131,072-token limit. Output stayed coherent at both lengths.
+
+| Context | MLX peak | Decode tok/s | Time to first token | Prompt tok/s |
+| --- | ---: | ---: | ---: | ---: |
+| 64K | 8.33 GB | 39.6 | 185 s | 354 |
+| 128K | 9.40 GB | 29.0 | 528 s | 248 |
+
+Memory pressure stayed at level 1; swap grew from 2.8 to 5.0 GB across the two runs. The KV cache is small because only 7 of 28 layers keep full-context keys and values (about 14 KB per token), while the other 21 use a 1,024-token sliding window. Raw files: `results/release-v1/mac-longctx/`.

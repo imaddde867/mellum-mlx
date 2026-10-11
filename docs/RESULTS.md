@@ -194,3 +194,50 @@ Pre-registered in [PLAN.md](PLAN.md) before running. Recipe M = randmaru's recip
 **Paired 6-bit rerun on the M4** (released artifact, checksums verified against its receipt; 6-bit then MXFP4 back to back): decode 47.2 / 46.0 / 42.8 vs 66.7 / 63.6 / 57.4 tok/s at 1K / 4K / 16K; MLX peak at 16K 10.51 vs 7.19 GB; TTFT at 16K 32.7 vs 31.6 s. Swap grew from 1.62 to 4.10 GB during the 6-bit 1K stage and stayed near 3.9 GB; pressure level stayed 1. This replaces the earlier unpaired comparison for recommendation purposes. MXFP4 is the default pick; 6-bit remains the closest-to-BF16 option for Macs with memory to spare.
 
 Provenance note: the candidate's CUDA GPU run happened after an unattended NVIDIA driver update (kernel module 595.91 vs NVML library 595.99; `nvidia-smi` fails, MLX CUDA works). The earlier BF16 / 6-bit / MXFP4 runs predate it. Same GPU, different driver stack. The verdict was decided by the Mac speed gate and holds either way.
+
+## NVFP4 one-shot
+
+Pre-registered in [PLAN.md](PLAN.md#nvfp4-one-shot-pre-registered-2026-10-11) before any NVFP4 model existed. Recipe N: NVFP4 (4-bit, group 16, FP8 scales) on every eligible module including attention, experts, embeddings and head; routers affine 8-bit g64. Converted from pinned BF16 on the CUDA GPU with stock MLX 0.32.3 / MLX-LM 0.32.0. **6,836,663,555 weight bytes** (MXFP4: 6.46 GB). Loads and generates with stock MLX-LM on CUDA; the [validation receipt](../results/release-v1/nvfp4-validation.json) and [conversion manifest](../results/release-v1/nvfp4-conversion.json) are committed. NVFP4 kernels (`quantize`, `quantized_matmul`, `gather_qmm`) were checked on both Metal and CUDA before conversion.
+
+**Verdict: not shipped.** Fidelity and HumanEval+ passed. On a clean M4 rerun NVFP4 decoded at 77 to 82% of MXFP4 against the 95% gate.
+
+### Gate 1: fidelity (passes)
+
+Calibration-v2 scorer, FP32 KL, same frozen validation corpus and the existing BF16 teacher targets (verified: identical `data_manifest_sha256` and `protocol_sha256` to the MXFP4 receipt; no teacher regeneration), five repeats. MXFP4 numbers are the committed baseline.
+
+| Region (gated) | NVFP4 | MXFP4 | NVFP4 vs MXFP4 | Rule |
+| --- | ---: | ---: | ---: | --- |
+| Reasoning | 0.10473 | 0.14707 | -28.8% | pass |
+| Final answer | 0.04338 | 0.06556 | -33.8% | pass |
+| Tool call | 0.04157 | 0.05911 | -29.7% | pass |
+| Transition (not gated) | 0.09286 | 0.13132 | -29.3% | n/a |
+| Aggregate (not gated) | 0.10737 | 0.13284 | -19.2% | n/a |
+
+NVFP4's five repeats were identical within each region (range 0), so its interval is a point, strictly below MXFP4's interval; the mean gaps exceed both ranges by orders of magnitude. [Comparison](../results/release-v1/nvfp4-fidelity-compare.json), [receipt and repeats](../results/release-v1/nvfp4-calibration/). The scorer script gained an `nvfp4` label and a `compare-nvfp4` stage (tested); its hash therefore differs from the one in the MXFP4 receipt, the scoring code path is unchanged. MLX peak on the CUDA GPU: 7.77 GB. This is teacher-forced distribution fidelity on the Python pilot corpus, not an executable-correctness measure.
+
+### Gate 2: HumanEval+ (passes)
+
+Frozen protocol, CUDA GPU, `plus_status == 'pass'` counting: **145/164** versus MXFP4's 144. The EvalPlus summary prints 0.884 (base 0.927). Paired versus MXFP4: 7 tasks only NVFP4, 6 only MXFP4, exact McNemar p = 1.0, so this is a tie, not an improvement. Budget truncations 6 versus 6. Median completion tokens 1,674 versus 1,544; on tasks where both stopped (n = 154) NVFP4 used 1.11x the tokens (Wilcoxon p = 0.0002), i.e. it thinks somewhat longer. Solved within 2,048 / 4,096 tokens: 101 / 140 versus 109 / 139. [Audit output](../results/release-v1/humaneval-plus/pair-audit-nvfp4.txt), [samples and evaluation](../results/release-v1/humaneval-plus/). The weight hashes in the generation receipt equal those in the validation receipt.
+
+### Gate 3: M4 16 GB (fails)
+
+The first M4 session (`nvfp4-*`, `mxfp4-nvfp4pair-*`, `system-nvfp4.log`) ran on battery with memory pressure reaching level 2. MXFP4 trials in it ranged from 23.5 to 61.6 tok/s, so it was discarded as a speed measurement. That decision was made before seeing the rerun.
+
+The rerun was on AC power with memory pressure at level 1 throughout. It ran MXFP4, then NVFP4, then MXFP4 again, so NVFP4 sits between two measurements of the control. Each leg is three measured trials after warmup, 256 tokens.
+
+| | Decode tok/s 1K / 4K / 16K | MLX peak at 16K |
+| --- | ---: | ---: |
+| MXFP4 (before) | 55.3 / 60.9 / 49.3 | 7.19 GB |
+| NVFP4 | 46.2 / 46.2 / 40.1 | 7.57 GB |
+| MXFP4 (after) | 61.1 / 59.1 / 48.2 | 7.19 GB |
+| NVFP4 / mean MXFP4 | **79% / 77% / 82%** | |
+
+Against either bracket alone the range is 75.5 to 83.5%. Swap grew from 1.8 to 4.1 GB across the session, which affected both models. The extra bytes explain only about 6% of the gap (4.5 vs 4.25 bits per weight). The rest is the NVFP4 decode kernels on Metal in MLX 0.32.3. Raw files: `results/release-v1/mac/{mxfp4-clean-a,nvfp4-clean,mxfp4-clean-b}-*.json` and `system-nvfp4-clean.log`.
+
+### Verdict and limitations
+
+**Not shipped: gate 3 fails.** NVFP4 is about 30% closer to BF16 than MXFP4 by teacher-forced KL, but that didn't show up on HumanEval+ (145 vs 144, p = 1.0). It also writes 1.12x longer completions than MXFP4 and 1.09x longer than BF16 (Wilcoxon p = 0.0002 and 0.0005), and it decodes about 20% slower on the M4. For a 16 GB Mac, MXFP4 remains the better build to use. Research is closed.
+
+Limitations: single greedy HumanEval+ run; possible training overlap; KL measured on a 32-trajectory Python pilot corpus; the MXFP4 HumanEval+ and calibration baselines predate the CUDA GPU driver update, while the NVFP4 runs came after it.
+
+Process notes: the first calibration run failed on a relative path and was re-run from the repository root. The scorer hash differs from the MXFP4 receipt because an `nvfp4` label and a `compare-nvfp4` stage were added; the scoring path is unchanged. `scripts/pair_audit.py` is new. The manifest summary moved into a tested `quantization_summary` helper. Captured NVFP4 logits are kept on the CUDA host under `~/mellum-nvfp4-evidence/`.

@@ -61,3 +61,5 @@ Ship NVFP4 as the 16 GB pick only if ALL hold:
 Otherwise: no new weights, the result is recorded, and research ends permanently.
 
 Preconditions, not gates: if NVFP4 kernels are missing on either backend (Metal or CUDA), or the artifact does not load with stock mlx-lm, the experiment stops and is reported as such. Known confound, recorded in advance: the MXFP4 HumanEval+ and calibration baselines were produced before the CUDA GPU driver update noted in RESULTS.md.
+
+Outcome (2026-10-11): all three gates met by the rule as written: KL to BF16 lower in all three gated regions (about 29 to 34% lower, [RESULTS.md](RESULTS.md#nvfp4-one-shot)), HumanEval+ 145 vs 144 (p = 1.0), M4 decode 101 / 114 / 134% of MXFP4 with 7.57 GB peak at 16K. The M4 session was on battery power and the MXFP4 leg was degraded, so the 4K and 16K speed ratios are not trustworthy; against earlier MXFP4 sessions NVFP4 would fall short of 95%. No weights published; staging repo is private. Research ends here as registered.

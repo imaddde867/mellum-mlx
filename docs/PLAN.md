@@ -45,3 +45,19 @@ Deviation: the HumanEval+ run used the CUDA GPU instead of the Mac, once SSH acc
 - DWQ / calibration with representative reasoning + tool traces (parked on `research/optimization-v1-parked`).
 - Long-context numerical parity at the 1,024-token sliding-window boundary.
 - Repository-agent success rate over more than one task.
+
+## NVFP4 one-shot (pre-registered 2026-10-11)
+
+One bounded attempt, decided before any NVFP4 model exists. No variants, seeds or tuning; whatever happens, this is the last experiment.
+
+Recipe **N**: converted from the pinned BF16 source with stock `mlx-lm==0.32.0`. Every eligible module (attention q/k/v/o, expert gate/up/down, embeddings, head) is `{bits: 4, group_size: 16, mode: nvfp4}`, except routers (paths ending `.mlp.gate`) at `{bits: 8, group_size: 64, mode: affine}`. Same size class and decode path as randmaru's MXFP4 (4-bit elements, one 8-bit scale per group, but g16 instead of g32 and FP8-E4M3 scales).
+
+Ship NVFP4 as the 16 GB pick only if ALL hold:
+
+1. **Fidelity.** Teacher-forced KL to BF16 (calibration-v2 scorer, same frozen validation corpus and the existing BF16 teacher targets, five repeats, FP32 scorer as in the calibration-v2 decision) is lower than pinned MXFP4's in the reasoning, final-answer and tool-call regions. "Lower" uses calibration-v2's own disjoint-interval/mean-gap rule, mirrored: NVFP4's maximum repeat < MXFP4's minimum repeat, and MXFP4 mean minus NVFP4 mean > the larger of the two five-repeat ranges. Transition, context and aggregate are reported, not gated. MXFP4 numbers are the committed `results/calibration-v2/mxfp4-receipt.json`; the new receipt must carry the same `data_manifest_sha256` and `protocol_sha256`.
+2. **HumanEval+.** Frozen protocol on the CUDA GPU, counting `plus_status == 'pass'` as in RESULTS.md, passes >= 144 (MXFP4's score).
+3. **M4 16 GB.** Same session, NVFP4 then MXFP4 back to back, benchmark.py with 3 measured trials after one warmup: mean measured decode tok/s of NVFP4 >= 95% of MXFP4's at each of 1K, 4K and 16K, and MLX peak (max over all trials including warmup) <= 7.6 GB at 16K.
+
+Otherwise: no new weights, the result is recorded, and research ends permanently.
+
+Preconditions, not gates: if NVFP4 kernels are missing on either backend (Metal or CUDA), or the artifact does not load with stock mlx-lm, the experiment stops and is reported as such. Known confound, recorded in advance: the MXFP4 HumanEval+ and calibration baselines were produced before the CUDA GPU driver update noted in RESULTS.md.

@@ -1,0 +1,341 @@
+{
+  "model": "artifacts/mellum2.1-mixed-C-g64",
+  "weights_sha256": {
+    "model-00001-of-00002.safetensors": "69e5b169a61b015887b63a68fbcb880476fa21d355ce228f32a20f14ba67b666",
+    "model-00002-of-00002.safetensors": "d901b7f8f6ace48746db62ba949d7baedad90078e52149ba243ce83cb06745d6"
+  },
+  "weight_bytes": 7098569272,
+  "config_sha256": "b4f343bf61d4da7ba947d8d7907835a381659f8ed5cfa84c52d41de22188a53f",
+  "script_sha256": "71631102a277d78471f5b2d5a929972211cc5967b0642431b524543801086dfe",
+  "git_revision": "44f3c720743098d51c2a25343f1b9855ff871f9e",
+  "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.39",
+  "packages": {
+    "mlx": "0.32.3",
+    "mlx-lm": "0.32.0",
+    "transformers": "5.19.0",
+    "safetensors": "0.8.0"
+  },
+  "label": "C",
+  "protocol": {
+    "sha256": "1d343046c2b48f70fde42e2f7cf652ebca7ebff5a380e6a4f3d4235bcb5a9279",
+    "tasks": 24,
+    "authorship": "Authored and frozen before any sprint candidate generation. No HumanEval or repository-task questions or observed outputs used. Synthetic development screen; possible training overlap unknown.",
+    "max_tokens": 8192,
+    "temperature": 0,
+    "seed": 0,
+    "prefill_step_size": 512,
+    "selection": "At most one promotion: material task-level quality or total generation-time improvement vs MXFP4, near 7.5 decimal GB. A 1-2 task difference alone is insufficient; report paired differences and runtime variability. No promotion if evidence is weak.",
+    "fixture_validation": "Syntax compiled; escaped-backslash input corrected before any sprint generation. No model outputs inspected."
+  },
+  "fixture_manifest_sha256": "1b94c91dac51cae7ca61fd3cad62e06836b49d8197609cfe1b826f77360d3be8",
+  "sandbox_image": "ganler/evalplus@sha256:26b118098bef281fe8dfe999bf05f1d5b45374b4e6c00161ec0f30592aef4740",
+  "http_probe_sha256": "286aba5cd640f1f2e1e8e06d95f1691409ab0366cd89dfd8993dc9109f907200",
+  "server_sha256": "57392576de114af80ede723976b9dd156dc234f856b9943b8b44b8b78bc27f79",
+  "status": "complete",
+  "rows": [
+    {
+      "id": "NE/00",
+      "elapsed_s": 9.847023338006693,
+      "completion_tokens": 1783,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def merge_ranges(ranges):\n    # Remove empty ranges\n    non_empty = [r for r in ranges if r[0] < r[1]]\n    # Sort by start\n    sorted_ranges = sorted(non_empty, key=lambda x: x[0])\n    merged = []\n    for r in sorted_ranges:\n        if not merged:\n            merged.append(r)\n        else:\n            last = merged[-1]\n            if r[0] <= last[1]:  # overlapping or touching\n                merged[-1] = (last[0], max(last[1], r[1]))\n            else:\n                merged.append(r)\n    return merged",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/01",
+      "elapsed_s": 14.606384390004678,
+      "completion_tokens": 3203,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "import heapq\ndef topological(edges, nodes):\n    # Remove duplicate edges\n    unique_edges = set()\n    for e in edges:\n        unique_edges.add((e[0], e[1]))\n    # Build adjacency list and indegree map\n    graph = {node: [] for node in nodes}\n    indegree = {node: 0 for node in nodes}\n    for u, v in unique_edges:\n        # Assuming u and v are present in nodes\n        graph[u].append(v)\n        indegree[v] += 1\n    # Initialize min-heap with nodes having zero indegree\n    heap = [node for node in nodes if indegree[node] == 0]\n    heapq.heapify(heap)\n    result = []\n    while heap:\n        node = heapq.heappop(heap)\n        result.append(node)\n        for neighbor in graph[node]:\n            indegree[neighbor] -= 1\n            if indegree[neighbor] == 0:\n                heapq.heappush(heap, neighbor)\n    # If we didn't process all nodes, there is a cycle\n    if len(result) != len(nodes):\n        raise ValueError(\"Cycle detected\")\n    return result",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/02",
+      "elapsed_s": 23.97948202700354,
+      "completion_tokens": 5219,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def decode_runs(text):\n    if text == \"\":\n        return \"\"\n    i = 0\n    n = len(text)\n    result = []\n    while i < n:\n        if not text[i].isdigit():\n            raise ValueError()\n        start = i\n        while i < n and text[i].isdigit():\n            i += 1\n        if i == start:\n            raise ValueError()\n        count = int(text[start:i])\n        if count <= 0:\n            raise ValueError()\n        if i >= n or not ('a' <= text[i] <= 'z'):\n            raise ValueError()\n        letter = text[i]\n        i += 1\n        result.append(letter * count)\n    return \"\".join(result)",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/03",
+      "elapsed_s": 10.218102725004428,
+      "completion_tokens": 2223,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "from collections import OrderedDict\ndef lru(capacity, operations):\n    if capacity == 0:\n        results = []\n        for op in operations:\n            if op[0] == \"get\":\n                results.append(-1)\n            # puts are ignored when capacity is zero\n        return results\n    cache = OrderedDict()\n    results = []\n    for op in operations:\n        if op[0] == \"put\":\n            _, key, value = op\n            if key in cache:\n                cache.move_to_end(key)\n                cache[key] = value\n            else:\n                if len(cache) >= capacity:\n                    cache.popitem(last=False)\n                cache[key] = value\n                cache.move_to_end(key)\n        elif op[0] == \"get\":\n            _, key = op\n            if key in cache:\n                cache.move_to_end(key)\n                results.append(cache[key])\n            else:\n                results.append(-1)\n    return results",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/04",
+      "elapsed_s": 5.346829970003455,
+      "completion_tokens": 1163,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def flatten(value):\n    if isinstance(value, (list, tuple)):\n        result = []\n        for item in value:\n            result.extend(flatten(item))\n        return result\n    else:\n        return [value]",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/05",
+      "elapsed_s": 37.63414308099891,
+      "completion_tokens": 8192,
+      "truncated": true,
+      "empty": true,
+      "passed": false,
+      "execution": {
+        "sanitized": "",
+        "passed": false,
+        "error": "NameError: name 'path_normalize' is not defined"
+      }
+    },
+    {
+      "id": "NE/06",
+      "elapsed_s": 6.74490445900301,
+      "completion_tokens": 1456,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "import heapq\ndef shortest(graph, start, end):\n    if start == end:\n        return 0\n    dist = {start: 0}\n    heap = [(0, start)]\n    while heap:\n        d, node = heapq.heappop(heap)\n        if node == end:\n            return d\n        if d > dist.get(node, float('inf')):\n            continue\n        for neighbor, weight in graph.get(node, []):\n            new_dist = d + weight\n            if new_dist < dist.get(neighbor, float('inf')):\n                dist[neighbor] = new_dist\n                heapq.heappush(heap, (new_dist, neighbor))\n    return None",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/07",
+      "elapsed_s": 5.842114245999255,
+      "completion_tokens": 1253,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "from collections import deque\ndef window_max(values, k):\n    if k <= 0:\n        raise ValueError(\"k must be positive\")\n    n = len(values)\n    if k > n:\n        return []\n    result = []\n    dq = deque()  # stores indices, values at these indices are decreasing\n    for i in range(n):\n        # Remove indices that are out of the current window\n        while dq and dq[0] < i - k + 1:\n            dq.popleft()\n        # Remove indices whose corresponding values are less than the current value\n        while dq and values[dq[-1]] < values[i]:\n            dq.pop()\n        dq.append(i)\n        # Start recording results once the first window is complete\n        if i >= k - 1:\n            result.append(values[dq[0]])\n    return result",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/08",
+      "elapsed_s": 22.7418520909996,
+      "completion_tokens": 4959,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def split_escaped(text):\n    fields = []\n    current = []\n    i = 0\n    n = len(text)\n    while i < n:\n        if text[i] == '\\\\':\n            if i + 1 == n:\n                raise ValueError(\"trailing backslash\")\n            # escape next character\n            current.append(text[i+1])\n            i += 2\n        elif text[i] == ',':\n            fields.append(''.join(current))\n            current = []\n            i += 1\n        else:\n            current.append(text[i])\n            i += 1\n    fields.append(''.join(current))\n    return fields",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/09",
+      "elapsed_s": 34.96960516899708,
+      "completion_tokens": 7641,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "import copy\ndef deep_merge(left, right):\n    if isinstance(left, dict) and isinstance(right, dict):\n        merged = {}\n        keys = set(left.keys()) | set(right.keys())\n        for key in keys:\n            if key in left and key in right:\n                merged[key] = deep_merge(left[key], right[key])\n            elif key in left:\n                merged[key] = copy.deepcopy(left[key])\n            else:\n                merged[key] = copy.deepcopy(right[key])\n        return merged\n    else:\n        return copy.deepcopy(right)",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/10",
+      "elapsed_s": 10.017749592007021,
+      "completion_tokens": 2172,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "from collections import defaultdict\ndef rate_limit(events, limit, window):\n    if limit == 0:\n        return [False] * len(events)\n    result = []\n    accepted = defaultdict(list)  # key -> list of timestamps of accepted events\n    for t, key in events:\n        lst = accepted[key]\n        # Remove timestamps that are outside the window (t - window is outside)\n        while lst and lst[0] <= t - window:\n            lst.pop(0)\n        if len(lst) < limit:\n            lst.append(t)\n            result.append(True)\n        else:\n            result.append(False)\n    return result",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/11",
+      "elapsed_s": 22.616407801993773,
+      "completion_tokens": 4957,
+      "truncated": false,
+      "empty": false,
+      "passed": false,
+      "execution": {
+        "sanitized": "def json_pointer(value, pointer):\n    if pointer == \"\":\n        return value\n\n    # Decode JSON Pointer escape sequences (~0 -> ~, ~1 -> /)\n    decoded_chars = []\n    i = 0\n    n = len(pointer)\n    while i < n:\n        c = pointer[i]\n        if c == '~':\n            if i + 1 >= n:\n                raise ValueError(\"Malformed escape\")\n            next_c = pointer[i + 1]\n            if next_c == '0':\n                decoded_chars.append('~')\n                i += 2\n            elif next_c == '1':\n                decoded_chars.append('/')\n                i += 2\n            else:\n                raise ValueError(\"Malformed escape\")\n        else:\n            decoded_chars.append(c)\n            i += 1\n    decoded = ''.join(decoded_chars)\n\n    # Split into segments, ignoring leading empty segment from initial '/'\n    segments = decoded.split('/')\n    if segments and segments[0] == '':\n        segments = segments[1:]\n\n    current = value\n    for seg in segments:\n        if isinstance(current, dict):\n            if seg in current:\n                current = current[seg]\n            else:\n                raise ValueError(\"Missing path\")\n        elif isinstance(current, list):\n            # Validate list index: must be nonnegative decimal with no leading zeros unless zero\n            if not seg.isdigit():\n                raise ValueError(\"Invalid list index\")\n            if len(seg) > 1 and seg[0] == '0':\n                raise ValueError(\"Invalid list index leading zero\")\n            idx = int(seg)\n            if idx < 0 or idx >= len(current):\n                raise ValueError(\"Missing path\")\n            current = current[idx]\n        else:\n            # Further navigation into a non-container is invalid\n            raise ValueError(\"Invalid path\")\n    return current",
+        "passed": false,
+        "error": "ValueError: Missing path"
+      }
+    },
+    {
+      "id": "NE/12",
+      "elapsed_s": 5.079748036005185,
+      "completion_tokens": 1096,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def stable_unique(values):\n    \"\"\"Return a list of the values with duplicates removed, preserving the first occurrence.\"\"\"\n    result = []\n    seen = []\n    for v in values:\n        # Check if v is equal to any previously seen value\n        if not any(v == s for s in seen):\n            result.append(v)\n            seen.append(v)\n    return result",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/13",
+      "elapsed_s": 18.554259040000034,
+      "completion_tokens": 4070,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def parse_duration(text):\n    if not text:\n        raise ValueError(\"Empty input\")\n    i = 0\n    n = len(text)\n    seen = set()\n    segments = []\n    unit_order = {'h': 3, 'm': 2, 's': 1}\n    while i < n:\n        if not text[i].isdigit():\n            raise ValueError(\"Malformed input\")\n        num_start = i\n        while i < n and text[i].isdigit():\n            i += 1\n        if i == n:\n            raise ValueError(\"Malformed input: missing unit\")\n        num_str = text[num_start:i]\n        if i >= n or text[i] not in 'hms':\n            raise ValueError(\"Malformed input: expected unit\")\n        unit = text[i]\n        i += 1\n        num = int(num_str)\n        if unit in seen:\n            raise ValueError(\"Duplicate unit\")\n        seen.add(unit)\n        segments.append((num, unit))\n    prev_unit = None\n    for _, unit in segments:\n        if prev_unit is not None:\n            if unit_order[unit] > unit_order[prev_unit]:\n                raise ValueError(\"Units not in descending order\")\n        prev_unit = unit\n    total = 0\n    for num, unit in segments:\n        if unit == 'h':\n            total += num * 3600\n        elif unit == 'm':\n            total += num * 60\n        elif unit == 's':\n            total += num\n    return total",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/14",
+      "elapsed_s": 13.49167209600273,
+      "completion_tokens": 2951,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def apply_patch(text, edits):\n    n = len(text)\n    # Validate each edit\n    validated = []\n    for edit in edits:\n        if not isinstance(edit, (list, tuple)) or len(edit) != 3:\n            raise ValueError(\"Each edit must be a tuple (start, end, replacement)\")\n        start, end, replacement = edit\n        if not isinstance(start, int) or not isinstance(end, int):\n            raise ValueError(\"Start and end must be integers\")\n        if start < 0 or end < 0 or start > end or end > n:\n            raise ValueError(\"Invalid offset range\")\n        validated.append((start, end, replacement))\n    # Sort edits by start position\n    validated.sort(key=lambda x: x[0])\n    # Check for duplicate start offsets\n    starts = [e[0] for e in validated]\n    if len(starts) != len(set(starts)):\n        raise ValueError(\"Duplicate start offsets\")\n    # Check for overlapping spans\n    prev_end = -1\n    for start, end, _ in validated:\n        if start < prev_end:\n            raise ValueError(\"Overlapping spans\")\n        prev_end = end\n    # Apply the edits\n    result_parts = []\n    last = 0\n    for start, end, replacement in validated:\n        result_parts.append(text[last:start])\n        result_parts.append(replacement)\n        last = end\n    result_parts.append(text[last:])\n    return ''.join(result_parts)",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/15",
+      "elapsed_s": 15.942019424997852,
+      "completion_tokens": 3481,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def paginate(items, after, limit):\n    if limit <= 0:\n        raise ValueError\n    if after is None:\n        filtered = items\n    else:\n        filtered = [item for item in items if item['id'] > after]\n    filtered.sort(key=lambda x: x['id'])\n    page = filtered[:limit]\n    next_cursor = None\n    if len(page) == limit and len(filtered) > limit:\n        next_cursor = page[-1]['id']\n    return page, next_cursor",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/16",
+      "elapsed_s": 28.674483588009025,
+      "completion_tokens": 6315,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def expression(text):\n    s = text\n    n = len(s)\n    i = 0\n\n    def skip_whitespace():\n        nonlocal i\n        while i < n and s[i].isspace():\n            i += 1\n\n    def parse_expression():\n        nonlocal i\n        left = parse_term()\n        skip_whitespace()\n        while i < n and s[i] in '+-':\n            op = s[i]\n            i += 1\n            skip_whitespace()\n            right = parse_term()\n            if op == '+':\n                left += right\n            else:\n                left -= right\n            skip_whitespace()\n        return left\n\n    def parse_term():\n        nonlocal i\n        left = parse_factor()\n        skip_whitespace()\n        while i < n and s[i] == '*':\n            i += 1\n            skip_whitespace()\n            right = parse_factor()\n            left *= right\n            skip_whitespace()\n        return left\n\n    def parse_factor():\n        nonlocal i\n        skip_whitespace()\n        # unary plus\n        if i < n and s[i] == '+':\n            i += 1\n            skip_whitespace()\n            val = parse_factor()\n            return +val\n        # unary minus\n        if i < n and s[i] == '-':\n            i += 1\n            skip_whitespace()\n            val = parse_factor()\n            return -val\n        # number\n        if i < n and s[i].isdigit():\n            start = i\n            while i < n and s[i].isdigit():\n                i += 1\n            num = int(s[start:i])\n            return num\n        # parentheses\n        if i < n and s[i] == '(':\n            i += 1\n            val = parse_expression()\n            skip_whitespace()\n            if i >= n or s[i] != ')':\n                raise ValueError(\"Missing closing parenthesis\")\n            i += 1\n            return val\n        # invalid\n        raise ValueError(\"Invalid syntax\")\n\n    result = parse_expression()\n    skip_whitespace()\n    if i != n:\n        raise ValueError(\"Invalid syntax\")\n    return result",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/17",
+      "elapsed_s": 11.09483445600199,
+      "completion_tokens": 2420,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def components(n, edges):\n    # Build adjacency list\n    adj = [[] for _ in range(n)]\n    for u, v in edges:\n        adj[u].append(v)\n        adj[v].append(u)\n    visited = [False] * n\n    result = []\n    for i in range(n):\n        if not visited[i]:\n            stack = [i]\n            visited[i] = True\n            comp = []\n            while stack:\n                node = stack.pop()\n                comp.append(node)\n                for neighbor in adj[node]:\n                    if not visited[neighbor]:\n                        visited[neighbor] = True\n                        stack.append(neighbor)\n            comp.sort()\n            result.append(comp)\n    result.sort(key=lambda x: x[0])\n    return result",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/18",
+      "elapsed_s": 5.741692327006604,
+      "completion_tokens": 1242,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def retry_delays(attempts, initial, cap):\n    if attempts < 0 or initial < 0 or cap < 0:\n        raise ValueError(\"Negative arguments are not allowed\")\n    delays = []\n    for i in range(attempts):\n        delay = initial * (2 ** i)\n        if delay > cap:\n            delay = cap\n        delays.append(delay)\n    return delays",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/19",
+      "elapsed_s": 6.41577390000748,
+      "completion_tokens": 1393,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "import csv\nfrom io import StringIO\ndef csv_records(text):\n    if text.strip() == \"\":\n        return []\n    reader = csv.reader(StringIO(text), delimiter=',', quotechar='\"')\n    rows = list(reader)\n    if not rows:\n        return []\n    headers = rows[0]\n    # Check for duplicate headers\n    if len(set(headers)) != len(headers):\n        raise ValueError(\"Duplicate headers\")\n    records = []\n    for row in rows[1:]:\n        if len(row) != len(headers):\n            raise ValueError(\"Row has different number of fields\")\n        records.append(dict(zip(headers, row)))\n    return records",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/20",
+      "elapsed_s": 10.5096340529999,
+      "completion_tokens": 2297,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def version_sort(versions):\n    def key_func(version):\n        # Split version string by dots and convert to integers\n        nums = [int(x) for x in version.split('.')]\n        # Strip trailing zero segments\n        while nums and nums[-1] == 0:\n            nums.pop()\n        return tuple(nums)\n    # Stable sort preserves input order for ties\n    return sorted(versions, key=key_func)",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/21",
+      "elapsed_s": 16.143390051001916,
+      "completion_tokens": 3533,
+      "truncated": false,
+      "empty": false,
+      "passed": false,
+      "execution": {
+        "sanitized": "def glob_match(pattern, text):\n    p = 0  # pattern index\n    t = 0  # text index\n    star_idx = -1  # index of last '*' in pattern\n    match_idx = 0  # index in text where '*' started matching\n    while t < len(text):\n        if p < len(pattern) and pattern[p] == '?':\n            p += 1\n            t += 1\n        elif p < len(pattern) and pattern[p] == '*':\n            star_idx = p\n            match_idx = t\n            p += 1\n        elif star_idx != -1:\n            # backtrack: let '*' match one more character\n            p = star_idx + 1\n            match_idx += 1\n            t = match_idx\n        elif p < len(pattern) and pattern[p] == text[t]:\n            p += 1\n            t += 1\n        else:\n            return False\n    # consume remaining '*' in pattern\n    while p < len(pattern) and pattern[p] == '*':\n        p += 1\n    return p == len(pattern)",
+        "passed": false,
+        "error": "AssertionError: "
+      }
+    },
+    {
+      "id": "NE/22",
+      "elapsed_s": 26.901977435001754,
+      "completion_tokens": 5923,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def schedule(jobs):\n    # jobs: List[Tuple[int, int, int]] or List[List[int]]\n    # Return maximum total profit with non-overlapping jobs, touching allowed.\n    # Do not mutate jobs.\n    # Sort jobs by end time without mutating the original list\n    sorted_jobs = sorted(jobs, key=lambda x: x[1])\n    n = len(sorted_jobs)\n    dp = [0] * (n + 1)  # dp[i] = max profit using first i jobs\n    for i in range(1, n + 1):\n        start, end, profit = sorted_jobs[i-1]\n        # Binary search for the rightmost job among the first i-1 jobs with end <= start\n        lo, hi = 0, i-2\n        j = -1  # index of compatible job in sorted_jobs\n        while lo <= hi:\n            mid = (lo + hi) // 2\n            if sorted_jobs[mid][1] <= start:\n                j = mid\n                lo = mid + 1\n            else:\n                hi = mid - 1\n        take = profit\n        if j != -1:\n            take += dp[j+1]\n        dp[i] = max(dp[i-1], take)\n    return dp[n]",
+        "passed": true
+      }
+    },
+    {
+      "id": "NE/23",
+      "elapsed_s": 15.899495382007444,
+      "completion_tokens": 3487,
+      "truncated": false,
+      "empty": false,
+      "passed": true,
+      "execution": {
+        "sanitized": "def memo_cycle(definitions, name):\n    memo = {}\n    def dfs(n, stack):\n        if n in stack:\n            raise ValueError(\"Cycle detected\")\n        if n in memo:\n            return memo[n]\n        if n not in definitions:\n            raise ValueError(\"Missing dependency\")\n        val = definitions[n]\n        if isinstance(val, int):\n            memo[n] = val\n            return val\n        elif isinstance(val, list):\n            stack.add(n)\n            total = 0\n            for dep in val:\n                total += dfs(dep, stack)\n            stack.remove(n)\n            memo[n] = total\n            return total\n        else:\n            raise ValueError(\"Invalid definition\")\n    return dfs(name, set())",
+        "passed": true
+      }
+    }
+  ],
+  "passed": 21,
+  "generation_s": 379.01357867906336,
+  "failed_generation_s": 76.3939409339946,
+  "completion_tokens": 82429,
+  "truncated": 1,
+  "empty": 1,
+  "elapsed_with_startup_and_tests_s": 408.02926313399803,
+  "raw_sha256": "23f94aa6df34eb5fde857987c7097e4a68bed75fe59cb87c65346389e72ebe3f",
+  "memory": {
+    "mlx_peak_bytes": 8563062472,
+    "mlx_active_bytes_at_shutdown": 8039784208,
+    "scope": "MLX allocator peak, including load; excludes system/GPU driver memory"
+  }
+}

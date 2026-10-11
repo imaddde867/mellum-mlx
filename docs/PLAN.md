@@ -1,55 +1,47 @@
-# Research and release plan
+# Release plan (frozen 2026-10-11)
 
-Research date: 2026-10-09. Goal: a useful, independently reproducible Mellum2.1 MLX release with credible engineering evidence. Popularity and download volume cannot be guaranteed.
+Goal: ship a Mellum2.1 Thinking MLX model that runs well on a 16 GB Apple Silicon Mac, with measured quality, plus a write-up of what we learned. The research phase is over. The previous open-ended plan is in git history (`git show ee3006a:docs/PLAN.md`).
 
-## Positioning
+## Already shipped
 
-Publish measured quantization choices and reliable local coding-agent use. The upstream model is intended for repository work and tool calling; its model card specifies Qwen3 reasoning parsing and Hermes tool parsing. [JetBrains model card](https://huggingface.co/JetBrains/Mellum2.1-12B-A2.5B-Thinking)
+- `imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit-g64` (9.87 GB). HumanEval+ 146/164 vs BF16 153/164. Recommended for 24 GB+ Macs.
 
-An existing MXFP4 MLX conversion rules out a first-conversion claim. Compare it fairly, pin its revision, and publish its results even if it wins. A smaller artifact with better tested compatibility can be useful without a new quantization algorithm.
+## The one remaining experiment
 
-## Candidate matrix
+Candidate **mxfp4-a8**: randmaru's recipe (MXFP4 g32 everywhere, 8-bit g64 routers) with one change: attention q/k/v/o projections at affine 8-bit g64, quantized from pinned BF16. Estimated 6.77 GB.
 
-| Candidate | Role | Policy |
-| --- | --- | --- |
-| Original BF16 | Reference | Same pinned source and tokenizer |
-| Native affine 4-bit/g64 | Main size-efficient baseline | Native 8-bit routers |
-| Native affine 6-bit/g64 | Fidelity reference | Native 8-bit routers |
-| Existing MXFP4 | External comparator | Preserve publisher's artifact |
-| Cached-target DWQ 4-bit | Conditional experiment | Existing 4-bit student; retain protected routers |
+Why this one: restoring attention precision was what rescued affine 4-bit in the non-expert screen (A and C); raising embeddings/head did nothing (B). MXFP4 experts already beat affine 4-bit experts by a wide margin on HumanEval+ (144 vs 133).
 
-Native Mellum architecture includes hybrid sliding/full attention and model-specific router precision. [Pinned MLX implementation](https://github.com/ml-explore/mlx-lm/blob/9d8abd94d63a9b3c72e7e9b146e43af1005368fa/mlx_lm/models/mellum.py)
+Hard requirement: loads with stock, unpatched `mlx-lm==0.32.0`.
 
-## Sequence and release gates
+## Ship rule (decided before running)
 
-1. **Artifact integrity:** pin upstream weights, packages and source hashes; validate every shard/index entry, router configuration, tokenizer vocabulary, EOS and plain/tool chat templates. Verify save/reload behaviour.
-2. **Numerical audit:** independent Transformers versus MLX BF16 reference, then quantized versus MLX BF16. Investigate discrepancies. Compare cached/uncached and chunked/unchunked execution at the 1,024-token sliding-window boundary and longer contexts. Short probe results cannot satisfy this full gate.
-3. **Representative quality:** run fixed HumanEval+ task IDs with expanded tests in an isolated execution environment. Use identical prompts, templates, sampling, output-token budgets and task IDs for all candidates. Report failures and truncation, paired differences and uncertainty. Treat this as regression evidence because training overlap is possible. Keep calibration separate. [EvalPlus](https://github.com/evalplus/evalplus)
-4. **Protocol reliability:** plain answers; one and multiple calls; escaped arguments; reasoning followed by a call; a tool-result round trip; truncated output; streaming and non-streaming. Distinguish fixed parser/serializer fixtures from model-generated live HTTP cases. Validate reconstructed JSON, names, IDs and finish reasons. Issue #1946 warrants reproduction rather than a claim that Mellum is affected. [Upstream report](https://github.com/ml-explore/mlx-lm/issues/1946)
-5. **Hardware measurements:** warmup plus repeated trials at 512/1K, 4K and 16K prompt tokens; fixed output budget; separate cold start, prompt rate, decode rate, TTFT, MLX peak memory and whole-system headroom/swap. Record hardware, OS, versions and power conditions. Test a real Mac before Apple performance/compatibility claims. Do not infer Metal performance from CUDA.
-6. **Publish:** weights plus revision/checksum receipt, exact recipe, raw results and one comparison chart. Publish variants with a clear demonstrated tradeoff. A CUDA-only preview must say experimental and retain all pending gates.
+Paired run on the M4 MacBook Pro (16 GB), candidate vs pinned randmaru MXFP4, full 164-task HumanEval+ under the existing [coding protocol](CODING_PROTOCOL.md) except hardware (Metal instead of the RTX 5090).
 
-## Advanced-method decision
+Ship mxfp4-a8 as the 16 GB pick only if all hold:
 
-These are existing MLX methods, not inventions of this project. Their suitability must be demonstrated on Mellum/CUDA.
+1. HumanEval+ passes >= MXFP4's passes on the same Mac run.
+2. Serialized weights <= 7.0 GB.
+3. M4 benchmark at 1K/4K/16K: MLX peak <= 7.6 GB at 16K, decode >= 90% of MXFP4's.
 
-| Method | Audit finding | Decision |
-| --- | --- | --- |
-| AWQ | Current model-config registry lacks Mellum | Defer architecture-specific support |
-| Dynamic sensitivity | Dequantized teacher/student and full gradient accumulators; custom policy may replace router protection | Defer on 32 GB VRAM |
-| GPTQ | Supports `SwitchLinear`; expert-conditioned calibration and router treatment still need audit | Conditional later pilot |
-| DWQ | Cached teacher targets, existing quantized student, scale/bias optimization | First advanced pilot |
+If it fails any gate: no new weights. The 6-bit card points 16 GB users to MXFP4, and the write-up is the deliverable.
 
-Sources: [AWQ](https://github.com/ml-explore/mlx-lm/blob/9d8abd94d63a9b3c72e7e9b146e43af1005368fa/mlx_lm/quant/awq.py), [dynamic quantization](https://github.com/ml-explore/mlx-lm/blob/9d8abd94d63a9b3c72e7e9b146e43af1005368fa/mlx_lm/quant/dynamic_quant.py), [GPTQ](https://github.com/ml-explore/mlx-lm/blob/9d8abd94d63a9b3c72e7e9b146e43af1005368fa/mlx_lm/quant/gptq.py), [DWQ](https://github.com/ml-explore/mlx-lm/blob/9d8abd94d63a9b3c72e7e9b146e43af1005368fa/mlx_lm/quant/dwq.py).
+Either way the research ends here. No extra seeds, no variants, no recalibration if the result is close. New ideas go to "Future work" below.
 
-DWQ pilot: batch one, short sequences, one forward/backward update, finite gradients, unchanged router policy, save/reload. Further calibration is deferred until after the first validated release. Generate BF16 targets in a separate process to avoid simultaneous teacher/student memory. Upstream caches top 1,024 logits; this is truncated-target distillation. Bind caches to dataset revision, IDs/order, seed, tokenizer, sequence length and batch size. The upstream existence checks alone do not protect against stale/mismatched targets. Publish DWQ only if independent held-out results justify it.
+## Outcome (2026-10-11)
 
-## Visibility and research value
+mxfp4-a8 tied MXFP4 on HumanEval+ (145 vs 144, p = 1.0) and passed size and memory, but decoded at 83–86% of MXFP4's speed on the M4. Gate 3 failed: no new weights. 16 GB users are pointed to MXFP4. Details in [RESULTS.md](RESULTS.md#final-experiment-mxfp4--8-bit-attention-not-shipped). Research closed.
 
-Lead with one defensible finding, link the raw comparison, and show a short real repository task with its test result. Package documentation so another person can reproduce it. An upstream regression test/fix, independently reproduced result, and useful adoption are stronger evidence than an unsupported best-model claim.
+Deviation: the HumanEval+ run used the RTX 5090 instead of the Mac, once SSH access was available, so it pairs with the existing BF16 / 6-bit / MXFP4 runs under the identical frozen protocol. Gate 1 was judged against that MXFP4 run. The M4 gate ran on the Mac as planned.
 
-Prepare a technical post and relevant MLX/JetBrains community submissions after results are ready. Sending outreach is a separate user-authorized action. Full SWE-bench is later work: disk and sandbox requirements are substantial and ARM support is experimental. [SWE-bench](https://github.com/SWE-bench/SWE-bench)
+## Then
 
-## Outstanding access
+1. README and model card lead with the result, the download and a "which Mac" table. Caveats get their own section.
+2. Write-up: quantization changed how long a thinking model thinks (native affine 4-bit: 2.2x longer completions, 18 budget truncations mid-reasoning) and pass@1 alone hides it.
+3. Publishing (Hugging Face upload, mlx-community, posts) only with explicit user approval.
 
-Target Mac hardware is confirmed: 14-inch MacBook Pro, M4 with 10-core CPU, 10-core GPU and 16 GB unified memory. An isolated Mac environment uses MLX 0.32.3 and MLX-LM 0.32.0; the pinned MXFP4 comparator completed numerical smoke, 1K/4K/16K throughput and streaming/non-streaming HTTP checks. The native 4-bit artifact passed Mac transfer checksums and its inference comparison is underway. Start with native 4-bit and MXFP4; test 6-bit only after measuring memory headroom. Hugging Face publication requires a confirmed destination and write-capable authentication; the connected account currently offers read access. These are publication/Apple validation dependencies, not reasons to stop local CUDA research.
+## Future work (not scheduled)
+
+- DWQ / calibration with representative reasoning + tool traces (parked on `research/optimization-v1-parked`).
+- Long-context numerical parity at the 1,024-token sliding-window boundary.
+- Repository-agent success rate over more than one task.

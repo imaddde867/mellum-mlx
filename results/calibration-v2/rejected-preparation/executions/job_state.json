@@ -1,0 +1,12 @@
+{
+  "family": "job_state",
+  "solution": {
+    "sanitized": "def job_state(events):\n    state = \"new\"\n    transitions = {(\"new\", \"start\"): \"running\", (\"running\", \"finish\"): \"done\", (\"running\", \"fail\"): \"failed\"}\n    for event in events:\n        key = state, event\n        if key not in transitions:\n            raise ValueError(\"invalid transition\")\n        state = transitions[key]\n    return state",
+    "passed": true
+  },
+  "buggy": {
+    "sanitized": "def job_state(events):\n    state = \"new\"\n    transitions = {(\"new\", \"start\"): \"running\", (\"running\", \"finish\"): \"done\", (\"running\", \"fail\"): \"done\"}\n    for event in events:\n        key = state, event\n        if key not in transitions:\n            raise ValueError(\"invalid transition\")\n        state = transitions[key]\n    return state",
+    "passed": false,
+    "error": "AssertionError: "
+  }
+}

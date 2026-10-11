@@ -1,0 +1,11 @@
+Original MIT-licensed pilot material authored for this repository. No external benchmark, development/heldout question, quant failure or generated teacher response was used to select these tasks.
+
+`families.json` retains the complete specifications, correct implementations, intentionally buggy implementations, assertions and authored reasoning for 32 training and eight validation families. `splits.json` assigns these underlying families before the preparation script constructs four related presentation variants per family: coding, bug repair, one edit tool call and a read/edit/test conversation. The variants share code and are correlated; 128/32 trajectories are a pilot budget, not 160 independent coding problems or sufficient coverage.
+
+`reserved.jsonl` contains 32 additional original evaluation tasks from separate families, with prompts and assertions but no responses. They are not tokenized, executed, teacher-scored or used for model selection in this task. Generic programming concepts may overlap, but no underlying task or its variants cross splits.
+
+`prepared/` contains the validated complete source conversations, exact upstream-template text, pinned-tokenizer IDs, target-token region labels, executable-answer receipts and coverage/length report. No sequence is truncated or windowed for training. Inference chunks preserve the full prior context through a KV cache; their measured memory says nothing about calibration gradient memory.
+
+The preparation uses the existing pinned offline EvalPlus container only as a Python sandbox and sanitizer. It does not load or run HumanEval+. Forty correct solutions and forty deliberately buggy controls are tested once per source family; those results are bound to the identical code appearing in its four variants. Read/edit messages are authored local tool simulations. Run-test results are the actual retained sandbox outcomes. This is Python-only material, and the authored reasoning is short rather than a sample of BF16-generated deliberation.
+
+The first preparation attempt and its exact source/code snapshots remain under `results/calibration-v2/`. It is not accepted training material. Its tokenizer API mismatch and assertion failures were repaired before any model measurements. No teacher-generation attempts occurred; there are no rejected/truncated teacher continuations to hide.

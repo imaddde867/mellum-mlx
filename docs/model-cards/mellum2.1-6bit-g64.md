@@ -57,9 +57,9 @@ HumanEval+ setup: all 164 tasks with expanded tests, one CUDA GPU, upstream chat
 
 ## Which build to use
 
-- **Most Macs, including 16 GB: [MXFP4](https://huggingface.co/randmaru/Mellum2.1-12B-A2.5B-Thinking-mlx-mxfp4).** Same quality as this build, 34 to 41% faster, 3.3 GB less memory.
-- **24 GB or more, and you want the closest to BF16: this 6-bit.** BF16 solved 8 tasks this build missed, against 10 for MXFP4. The difference isn't significant.
-- **16 GB: not recommended.** Swap grew from 1.6 to 4.1 GB during the 6-bit run.
+- **16 GB Macs: [NVFP4](https://huggingface.co/imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-nvfp4)** (6.84 GB) is the closest to BF16 at about 7 GB. [MXFP4](https://huggingface.co/randmaru/Mellum2.1-12B-A2.5B-Thinking-mlx-mxfp4) gives the fastest answers. Both decode 34 to 41% faster than this build.
+- **24 GB or more: this 6-bit** solved the most HumanEval+ tasks of the quantized builds (146 vs 145 for NVFP4 and 144 for MXFP4). The differences aren't significant.
+- **16 GB: not recommended for this build.** Swap grew from 1.6 to 4.1 GB during the 6-bit run.
 - Long context is cheap. 21 of 28 layers use a 1,024-token sliding window, so the KV cache is about 0.5 GB at 32K tokens.
 
 ## Known MLX-LM 0.32.0 serving issues

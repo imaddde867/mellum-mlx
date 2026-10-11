@@ -37,7 +37,7 @@ It didn't help a good base. My last experiment kept MXFP4 experts and moved atte
 
 Calibration didn't help either. A bounded DWQ distillation run on scales and biases made held-out loss worse and didn't change task results beyond noise.
 
-Where that leaves my own release: the [6-bit](https://huggingface.co/imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit-g64) (146/164, 9.9 GB) loses the fewest tasks to BF16. MXFP4 ties it, though, and on the same M4 session it decoded 41% faster at 1K context (66.7 vs 47.2 tok/s) using 3.3 GB less memory. For most people the existing MXFP4 conversion is the better download, and the repository says so. I didn't publish a near-duplicate of it.
+Where that leaves my releases. The [6-bit](https://huggingface.co/imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit-g64) (146/164, 9.9 GB) solves the most tasks, but MXFP4 ties it and decodes 41% faster on the M4. So for 16 GB Macs I tried one more format, NVFP4, which uses groups of 16 weights with FP8 scales. It measured about 30% closer to BF16 than MXFP4 by KL divergence on held-out reasoning, answer and tool-call traces, at 95 to 96% of MXFP4's decode speed, and I [published it](https://huggingface.co/imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-nvfp4). It tied MXFP4 on HumanEval+ (145 vs 144) and wrote 12% longer completions, though, so MXFP4 still gives the fastest finished answers. Being closer to the original isn't the same as being better to use, and this benchmark can't tell those two apart.
 
 ## Limits
 

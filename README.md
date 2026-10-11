@@ -7,14 +7,14 @@ Benchmarked MLX quantizations of JetBrains' [Mellum2.1-12B-A2.5B-Thinking](https
 [![Checks](https://github.com/imaddde867/mellum-mlx/actions/workflows/checks.yml/badge.svg)](https://github.com/imaddde867/mellum-mlx/actions/workflows/checks.yml)
 [![License: MIT](https://img.shields.io/badge/code-MIT-lightgrey)](LICENSE)
 
-- **Model:** [imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit-g64](https://huggingface.co/imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit-g64), 9.87 GB. The same files are also on [mlx-community](https://huggingface.co/mlx-community/Mellum2.1-12B-A2.5B-Thinking-6bit).
+- **Models:** [NVFP4, 6.84 GB](https://huggingface.co/imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-nvfp4) for 16 GB Macs and [6-bit, 9.87 GB](https://huggingface.co/imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit-g64) for 24 GB or more. The 6-bit is also on [mlx-community](https://huggingface.co/mlx-community/Mellum2.1-12B-A2.5B-Thinking-6bit).
 - **Write-up:** [Same size, twice the thinking: what 4-bit quantization did to a reasoning model](docs/WRITEUP.md)
 
 ## Quickstart
 
 ```sh
 pip install 'mlx-lm==0.32.0'
-python -m mlx_lm generate --model mlx-community/Mellum2.1-12B-A2.5B-Thinking-6bit \
+python -m mlx_lm generate --model imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-nvfp4 \
   --prompt 'Find the bug: def mean(xs): return sum(xs) / len(xs) - 1' \
   --temp 0.6 --top-p 0.95 --top-k 20 --max-tokens 16384
 ```
@@ -25,10 +25,11 @@ Always set `--max-tokens`. Reasoning and the answer share the budget, and the ML
 
 | Your Mac | Use | Why |
 | --- | --- | --- |
-| Any, including 16 GB | [randmaru MXFP4](https://huggingface.co/randmaru/Mellum2.1-12B-A2.5B-Thinking-mlx-mxfp4) (6.46 GB) | Statistically tied with 6-bit on HumanEval+, 34 to 41% faster decode, 7.2 GB peak memory. |
-| 24 GB or more | [6-bit](https://huggingface.co/imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit-g64) (9.87 GB) | Closest to BF16 of the tested builds. The edge over MXFP4 isn't significant. Swaps on 16 GB. |
+| 16 GB, closest to BF16 | [NVFP4](https://huggingface.co/imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-nvfp4) (6.84 GB) | About 30% closer to BF16 than MXFP4 by KL divergence, 95 to 96% of its decode speed, 7.6 GB peak memory. |
+| 16 GB, fastest answers | [randmaru MXFP4](https://huggingface.co/randmaru/Mellum2.1-12B-A2.5B-Thinking-mlx-mxfp4) (6.46 GB) | About 5% faster decode and 12% shorter completions. Ties NVFP4 and 6-bit on HumanEval+. |
+| 24 GB or more | [6-bit](https://huggingface.co/imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit-g64) (9.87 GB) | Most HumanEval+ tasks solved of the quantized builds. Swaps on 16 GB. |
 
-Four attempts to beat MXFP4 at 16 GB tied or lost: mixed 4/6-bit, group-32 experts, DWQ calibration, and MXFP4 with 8-bit attention. A fifth, NVFP4, is measurably closer to BF16 at near-equal speed but ties on HumanEval+; see finding 2.
+Four other attempts to improve on MXFP4 at 16 GB tied or lost: mixed 4/6-bit, group-32 experts, DWQ calibration, and MXFP4 with 8-bit attention. Each one was decided by a rule written down before it ran.
 
 ## Results
 
@@ -40,7 +41,7 @@ Four attempts to beat MXFP4 at 16 GB tied or lost: mixed 4/6-bit, group-32 exper
 | **6-bit (this release)** | 9.87 GB | 146 (89.0%) | 3 | 1,521 | 47.2 / 42.8 |
 | randmaru MXFP4 | 6.46 GB | 144 (87.8%) | 6 | 1,544 | 66.7 / 57.4 |
 | MXFP4 + 8-bit attention | 6.77 GB | 145 (88.4%) | 3 | 1,632 | 55.0 / 49.0 |
-| NVFP4 | 6.84 GB | 145 (88.4%) | 6 | 1,674 | 63.9 / 55.8 |
+| **NVFP4 (this release)** | 6.84 GB | 145 (88.4%) | 6 | 1,674 | 63.9 / 55.8 |
 | Affine 4-bit | 6.84 GB | 133 (81.1%) | 18 | 3,242 | n/a |
 
 HumanEval+ setup: all 164 tasks on one CUDA GPU, upstream chat template, greedy decoding, 8,192-token budget that includes reasoning, one sample per task. M4 setup: 14-inch MacBook Pro with 16 GB, 256 output tokens, mean of three trials after warmup. Each unreleased candidate ran in the same session as MXFP4. NVFP4 was interleaved A-B-B-A with MXFP4 on a 68 W charger, with MXFP4 averaging 67.2 / 58.3 in that session. Paired statistics and limitations are in [docs/RESULTS.md](docs/RESULTS.md).

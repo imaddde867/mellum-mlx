@@ -14,7 +14,7 @@ REVISION = "92ddae9fc7665e9f801d141d2e5a6b2caf2460c4"
 
 
 def mixed_plan(shapes, config, recipe):
-    if recipe not in {'A', 'B', 'C', 'D', 'M'}:
+    if recipe not in {'A', 'B', 'C', 'D', 'M', 'N'}:
         raise ValueError('Unknown mixed recipe')
     expected = {'model.embed_tokens'}
     if not config['tie_word_embeddings']:
@@ -30,6 +30,12 @@ def mixed_plan(shapes, config, recipe):
         raise ValueError(f'Unexpected eligible module coverage: {sorted(set(shapes) ^ expected)}')
     plan = {}
     for path in shapes:
+        if recipe == 'N':
+            # NVFP4 (g16, FP8 scales) everywhere except affine 8-bit routers.
+            plan[path] = ({'bits': 8, 'group_size': 64, 'mode': 'affine'}
+                          if path.endswith('.mlp.gate') else
+                          {'bits': 4, 'group_size': 16, 'mode': 'nvfp4'})
+            continue
         if recipe == 'M':
             # randmaru MXFP4 recipe plus affine 8-bit attention.
             high = path.endswith('.mlp.gate') or '.self_attn.' in path
@@ -54,12 +60,23 @@ def estimate_payload(tensors, plan):
         policy = plan.get(name.removesuffix('.weight')) if name.endswith('.weight') else None
         if policy:
             count = math.prod(tensor['shape'])
-            # affine: BF16 scale + bias per group; mxfp4: one uint8 scale per group.
-            per_group = 1 if policy['mode'] == 'mxfp4' else 4
+            # affine: BF16 scale + bias per group; mxfp4/nvfp4: one uint8 scale per group.
+            per_group = 1 if policy['mode'] in {'mxfp4', 'nvfp4'} else 4
             total += count * policy['bits'] // 8 + count // policy['group_size'] * per_group
         else:
             total += tensor['nbytes']
     return total
+
+
+def quantization_summary(recipe, bits):
+    if recipe == 'N':
+        return {"mode": "nvfp4", "bits": 4, "group_size": 16, "router_bits": 8,
+                "non_quantized_dtype": "bfloat16"}
+    if recipe == 'M':
+        return {"mode": "mxfp4", "bits": 4, "group_size": 32, "attention_bits": 8,
+                "router_bits": 8, "non_quantized_dtype": "bfloat16"}
+    return {"mode": "affine", "bits": bits, "group_size": 64,
+            "router_bits": 8, "non_quantized_dtype": "bfloat16"}
 
 
 def realized_map(config, plan):
@@ -79,10 +96,11 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--bits", type=int, choices=[4, 6], default=4)
     p.add_argument("--device", choices=["cpu", "gpu"], default="gpu")
-    p.add_argument('--recipe', choices=['A', 'B', 'C', 'D', 'M'])
+    p.add_argument('--recipe', choices=['A', 'B', 'C', 'D', 'M', 'N'])
     p.add_argument('--estimate-only', action='store_true')
     args = p.parse_args()
-    dest = Path('artifacts/mellum2.1-mxfp4-a8' if args.recipe == 'M' else
+    dest = Path('artifacts/mellum2.1-nvfp4' if args.recipe == 'N' else
+               'artifacts/mellum2.1-mxfp4-a8' if args.recipe == 'M' else
                 f'artifacts/mellum2.1-mixed-{args.recipe}-g64' if args.recipe else
                 f"artifacts/mellum2.1-affine-{args.bits}bit-g64")
     if dest.exists():
@@ -161,11 +179,7 @@ def main():
     manifest = {
         "source": SOURCE, "source_revision": REVISION,
         "created_utc": datetime.now(timezone.utc).isoformat(),
-        "quantization": ({"mode": "mxfp4", "bits": 4, "group_size": 32, "attention_bits": 8,
-                          "router_bits": 8, "non_quantized_dtype": "bfloat16"}
-                         if args.recipe == 'M' else
-                         {"mode": "affine", "bits": args.bits, "group_size": 64,
-                          "router_bits": 8, "non_quantized_dtype": "bfloat16"}),
+        "quantization": quantization_summary(args.recipe, args.bits),
         "device": args.device, "platform": platform.platform(),
         "python": platform.python_version(),
         "packages": {pkg: importlib.metadata.version(pkg) for pkg in

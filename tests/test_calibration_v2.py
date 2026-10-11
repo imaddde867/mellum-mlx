@@ -130,5 +130,42 @@ class BaselineSummaryTests(unittest.TestCase):
                 m.summarize({'C':first,'mxfp4':bad})
 
 
+class Nvfp4ComparisonTests(unittest.TestCase):
+    def test_gate_needs_disjoint_interval_and_mean_gap_in_reasoning_final_tool_call(self):
+        import calibration_v2 as m
+        r = lambda v: BaselineSummaryTests.receipt(self, v)
+        mx = r([.1, .1001, .1, .1, .1])
+        result = m.compare_nvfp4(r([.09, .0901, .09, .09, .09]), mx)
+        self.assertTrue(result['pass'])
+        self.assertEqual(set(result['regions']), {'reasoning', 'final', 'tool_call', 'transition', 'aggregate'})
+        self.assertFalse(result['regions']['transition']['gated'])
+        # Overlapping interval: one NVFP4 repeat reaches MXFP4's minimum.
+        self.assertFalse(m.compare_nvfp4(r([.09, .09, .09, .09, .1]), mx)['pass'])
+        # Disjoint but the mean gap is not larger than the larger range.
+        wide = r([.0999, .0999, .0999, .0999, .0999])
+        self.assertFalse(m.compare_nvfp4(wide, r([.1, .2, .1, .1, .1]))['pass'])
+        # Worse than MXFP4.
+        self.assertFalse(m.compare_nvfp4(r([.2] * 5), mx)['pass'])
+
+    def test_receipts_must_share_complete_frozen_contexts(self):
+        import calibration_v2 as m
+        base = BaselineSummaryTests.receipt(self, [.1] * 5)
+        for bad in [BaselineSummaryTests.receipt(self, [.1] * 4), {**base, 'updates': 1},
+                    {**base, 'protocol_sha256': 'different'},
+                    {**base, 'data_manifest_sha256': 'different'}]:
+            with self.assertRaises(ValueError):
+                m.compare_nvfp4(bad, base)
+
+
+class Nvfp4LabelTests(unittest.TestCase):
+    def test_nvfp4_label_requires_recipe_n_and_artifact_hashes(self):
+        import calibration_v2 as m
+        good = {'recipe': 'N', 'artifact_sha256': {'a.safetensors': 'x'}}
+        self.assertEqual(m.nvfp4_expected_hashes(good), {'a.safetensors': 'x'})
+        for bad in [{**good, 'recipe': 'M'}, {'recipe': 'N'}, {**good, 'artifact_sha256': {}}]:
+            with self.assertRaises(ValueError):
+                m.nvfp4_expected_hashes(bad)
+
+
 if __name__ == '__main__':
     unittest.main()

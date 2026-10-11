@@ -84,6 +84,26 @@ class MixedPrecisionTests(unittest.TestCase):
         plan = {'x': {'bits': 4, 'group_size': 32, 'mode': 'mxfp4'}}
         self.assertEqual(convert.estimate_payload(tensors, plan), 64 + 4)
 
+    def test_n_is_nvfp4_g16_with_affine8_routers_only(self):
+        plan = convert.mixed_plan(self.shapes(), {'num_hidden_layers': 1, 'tie_word_embeddings': False}, 'N')
+        affine8 = {'bits': 8, 'group_size': 64, 'mode': 'affine'}
+        nvfp4 = {'bits': 4, 'group_size': 16, 'mode': 'nvfp4'}
+        for path, policy in plan.items():
+            self.assertEqual(policy, affine8 if path.endswith('.mlp.gate') else nvfp4, path)
+        self.assertEqual(plan['model.layers.0.self_attn.q_proj'], nvfp4)
+        self.assertEqual(plan['model.embed_tokens'], nvfp4)
+
+    def test_nvfp4_estimate_uses_one_byte_scale_per_group_of_16(self):
+        tensors = {'x.weight': {'shape': [2, 64], 'nbytes': 256}}
+        plan = {'x': {'bits': 4, 'group_size': 16, 'mode': 'nvfp4'}}
+        self.assertEqual(convert.estimate_payload(tensors, plan), 64 + 8)
+
+    def test_n_manifest_summary(self):
+        self.assertEqual(convert.quantization_summary('N', 4),
+                         {'mode': 'nvfp4', 'bits': 4, 'group_size': 16, 'router_bits': 8,
+                          'non_quantized_dtype': 'bfloat16'})
+        self.assertEqual(convert.quantization_summary('M', 4)['mode'], 'mxfp4')
+
     def test_receipt_rejects_silently_changed_precision(self):
         plan = {'x': {'bits': 6, 'group_size': 64, 'mode': 'affine'}}
         self.assertEqual(convert.realized_map({'bits': 4, 'group_size': 64, 'mode': 'affine', **plan}, plan), plan)

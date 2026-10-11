@@ -1,0 +1,130 @@
+{
+  "version": "calibration-v2-behavior-diagnostic-1.0",
+  "scope": "diagnostic only; no promotion",
+  "parent_commit": "226d09b",
+  "frozen_before_control_generation_utc": "2026-10-10T20:19:34.826728+00:00",
+  "controls": [
+    "U-128",
+    "BF16"
+  ],
+  "parent_protocol_sha256": "fd284d82224ab2b5d60213355d9d4b1e47976c781a0a0c86d3bc1b78f806e102",
+  "parent_details_sha256": "105b737836d7ddfab6e3dda088f75ad05c09374e2921f6dae162880e741b2575",
+  "historical_audit_sha256": "7604b438256e70bb89dc25be483c77454138388319e4d5f59b5e44010fd09448",
+  "compatibility_sha256": "69c98f0b251e338eaefa39b50cd3c7f04c1d33a2cdfcf6a6e2cb330b599a5ad0",
+  "runtime": {
+    "MLX_USE_CUDA_GRAPHS": "1",
+    "MLX_CUDA_GRAPH_CACHE_SIZE": "400",
+    "MLX_ENABLE_CACHE_THRASHING_CHECK": "0"
+  },
+  "execution_timeout_s": 7200,
+  "unchanged_settings": {
+    "version": "calibration-v2-reserved-1.0",
+    "models": [
+      "one locked candidate",
+      "pristine C",
+      "pinned MXFP4"
+    ],
+    "order": "reserved JSONL order, same for all three",
+    "prompt": "original task contract, named entry point, original supplied assertions; ask edit_file task.py, run_tests, then final full code",
+    "tools": "existing calibration-v2 strict read_file/edit_file/run_tests schemas; virtual workspace, sandbox for execution; final oracle always original assertions",
+    "serving": "existing loopback MLX-LM server, concurrency one, prefill 512, upstream thinking/template parser",
+    "sampling": "greedy, temperature zero, seed zero",
+    "completion_budget_total_per_task": 8192,
+    "max_responses_per_task": 4,
+    "budget": "aggregate across reasoning and all tool/final responses, no retries after task failure",
+    "measure": [
+      "executable correctness",
+      "strict call/schema validity",
+      "truncation",
+      "completion tokens",
+      "generation elapsed including failed/truncated attempts"
+    ],
+    "candidate_locked_before_reserved": true,
+    "post_eval_tuning": false,
+    "limitation": "original provided assertions only; not comprehensive hidden correctness tests"
+  },
+  "operational_details": {
+    "http_timeout_s": 120,
+    "startup_timeout_s": 180,
+    "stream": false,
+    "invalid_tool": "record exact error; end task without retry",
+    "transport_or_server_failure": "record attempt; terminate server process without GPU inspection; no retry",
+    "completion_accounting": "response usage completion_tokens, aggregate across at most four responses, includes reasoning; missing/invalid usage ends attempt visibly",
+    "oracle": "existing isolated Docker sandbox and pinned sanitizer; original assertions only",
+    "final_code": "assistant content from final response; never substitute edited workspace for missing final",
+    "models_order": [
+      "candidate",
+      "C",
+      "MXFP4"
+    ],
+    "task_order": "frozen reserved JSONL order",
+    "tuning": false,
+    "generation_elapsed": "sum HTTP request elapsed time including failed requests; conversation elapsed retained separately"
+  },
+  "memory_policy": "Reuse the identical MLX-LM CLI loading/serving path and allocator defaults of the historical behavior servers. BF16 uses existing work/source (24.3 GB); one model/server resident at a time. No training/optimizer state. No memory settings or cache policy changes.",
+  "artifact_policy": "Export only frozen U step 128. Check scheduled FP32 masters against rolling restart step 128 on host, immutable source/data/target bindings, protected weights, then all parameter digests in a separate fresh process. No optimizer update or resumed run.",
+  "control_policy": "Separate fresh processes sequentially, U then BF16. One attempt per task; no retry or replacement model on blocker. No S/C/MXFP4 reruns.",
+  "diagnostic_categories": [
+    "redundant actions (exact repeated calls on unchanged source; separately read-after-passing-test)",
+    "repair still incorrect under original assertions",
+    "passing workspace missing final",
+    "token/response budgets",
+    "parser-drop termination",
+    "virtual-module import failures",
+    "state replay discrepancies",
+    "working workspace but incorrect final copy"
+  ],
+  "audit_policy": "Keep overlaps; distinguish model-supplied tool assertions from original oracle and final source. Sandbox replay is analysis only, never a missing-final score rescue. Preserve literal final_present and additionally substantive final.",
+  "selection": "No winner selection. S-128 remains rejected. U is a post-hoc control only. No promotion. Opened 32 tasks are diagnostic/regression material for future work.",
+  "interpretation": "A single run per model does not establish objective superiority or numerical causality. Do not infer overfitting, incorrect gradients or a particular loss mechanism from aggregate scores.",
+  "reserved_sha256": "00bcf048b7fb6475802435e1256dacdec17b6a65b56e7974be8f223fe0272f8f",
+  "bf16_binding": {
+    "model": "work/source",
+    "weights_sha256": {
+      "model-00001-of-00005.safetensors": "f5ccf8012c7d44fd2598325bf2482b8fc21792ef888de68f9ca8c9053c2e022f",
+      "model-00002-of-00005.safetensors": "266beea6f34dea9c86414d8bf8cb35c0f4a53330731d99ed41ec666390758e39",
+      "model-00003-of-00005.safetensors": "da9a04fb6ea121f71e30920c7657b889ca0078aea57d878e5cb768ebb3e4483a",
+      "model-00004-of-00005.safetensors": "32f27ab7f38ff5d98ac3d50dabb57ab8a55a8aa552febd42c2a5b01f4116262a",
+      "model-00005-of-00005.safetensors": "d8bbb9b829cb3279e23f59af55bf68ec00cc8ad30923c227d8b13c7d831e6b3b"
+    },
+    "weight_bytes": 24300538808,
+    "config_sha256": "f43d018246094dee6dca455b3072766b6acbefd1ac8e7fe664df34710606a541",
+    "script_sha256": "71631102a277d78471f5b2d5a929972211cc5967b0642431b524543801086dfe",
+    "git_revision": "44f3c720743098d51c2a25343f1b9855ff871f9e",
+    "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.39",
+    "packages": {
+      "mlx": "0.32.3",
+      "mlx-lm": "0.32.0",
+      "transformers": "5.19.0",
+      "safetensors": "0.8.0"
+    }
+  },
+  "packages": {
+    "mlx": "0.32.3",
+    "mlx-lm": "0.32.0",
+    "transformers": "5.19.0",
+    "safetensors": "0.8.0"
+  },
+  "shared_tokenizer_sha256": {
+    "tokenizer.json": "58548a346eb073e5132bf7d8ad17dc6971bca36ade378ca4d2bfbc49bf60da2a",
+    "tokenizer_config.json": "e2950960d2a3040a1938e6357c8c3628d531133c464286a7869b2e0504fcc59e",
+    "chat_template.jinja": "4593a34d52f3364ac13ce57f4bea5688924e8942da6df8201e411db17e729f48",
+    "special_tokens_map.json": "20e1ead0b0986b55989aa8116bafe63efcbae0daf8ed047970cd28b36aada4d9",
+    "generation_config.json": "a9dc104ca398a2ef376d3f2fbb03037d99950ddb2db0cd041b98398cf1fc8d7c"
+  },
+  "u_receipt_sha256": "2e52cfffcf8e13ce12c9e1767e16b71d3c8c89395f6ef01cdbfde83847037d4a",
+  "server_sha256": "57392576de114af80ede723976b9dd156dc234f856b9943b8b44b8b78bc27f79",
+  "sandbox_image": "ganler/evalplus@sha256:26b118098bef281fe8dfe999bf05f1d5b45374b4e6c00161ec0f30592aef4740",
+  "source_sha256": {
+    "scripts/calibration_v2_behavior_controls.py": "c662e474f010ce0ded202404dca95d505117a398e15f4d770827bb2f32c92231",
+    "scripts/calibration_v2_behavior_audit.py": "7a2c37a54e04da2abe3f07e85499bb68a468cddc3f5781ce3a48272851eee4d7",
+    "scripts/calibration_v2_exploratory_behavior.py": "74a6228315862572eeba76bffdfb6bc70931c845d6dff66029d65fd6415ac1be",
+    "scripts/calibration_v2_exploratory_artifact.py": "0c0b613ee011e1ace344dbef54f67e6c9939006fadd0302bf73013c0f19a2c70",
+    "scripts/calibration_v2_runtime.py": "da1c73802e259200b694c390817e2960b07132481cd2c9e3ef3481c7b15bbe30",
+    "scripts/calibration_v2_objective.py": "fac3b4904af51a565b5fea0da9c53b29470fe708cd172cb51441fc0557809811",
+    "scripts/nonexpert.py": "71631102a277d78471f5b2d5a929972211cc5967b0642431b524543801086dfe",
+    "scripts/http_probe.py": "286aba5cd640f1f2e1e8e06d95f1691409ab0366cd89dfd8993dc9109f907200",
+    "scripts/calibration_v2.py": "463318b908049aea2850f4828d99bb7321e1afe338bdac2670e4956f0c51e5cc",
+    "scripts/evaluate_coding.py": "63932c937fcf3e130b7550adac6ae103bb1039be235e8face09cdbe506dc1b80"
+  }
+}

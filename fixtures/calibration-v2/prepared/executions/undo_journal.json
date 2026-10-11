@@ -1,0 +1,12 @@
+{
+  "family": "undo_journal",
+  "solution": {
+    "sanitized": "def undo_journal(events):\n    values, history = {}, []\n    for event in events:\n        if event[0] == \"add\":\n            _, key, delta = event\n            values[key] = values.get(key, 0) + delta\n            history.append((key, delta))\n        elif event == (\"undo\",):\n            if not history:\n                raise ValueError(\"empty history\")\n            key, delta = history.pop()\n            values[key] -= delta\n        else:\n            raise ValueError(\"event\")\n    return values",
+    "passed": true
+  },
+  "buggy": {
+    "sanitized": "def undo_journal(events):\n    values, history = {}, []\n    for event in events:\n        if event[0] == \"add\":\n            _, key, delta = event\n            values[key] = values.get(key, 0) + delta\n            history.append((key, delta))\n        elif event == (\"undo\",):\n            if not history:\n                raise ValueError(\"empty history\")\n            key, delta = history.pop(0)\n            values[key] -= delta\n        else:\n            raise ValueError(\"event\")\n    return values",
+    "passed": false,
+    "error": "AssertionError: "
+  }
+}

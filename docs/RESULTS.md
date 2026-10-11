@@ -144,3 +144,53 @@ The 16K synthetic run and streaming/non-streaming HTTP addition probe passed. Th
 Seed 0 exhausted its turn budget with eight regression failures. Seed 1 passed all 36 fixed repository/regression tests. Seed 2 introduced a syntax error and emitted an invalid repair call; the patched server returned its failed text, but the harness ended on a no-call stop response. Final tests retained that failure (six import errors). Every transcript, patch and outcome is in [rerun-patched](../results/repository-agent/whatisit-macos/rerun-patched/README.md). Original source checkout and original runtime remain unchanged. This one-task result is not a general reliability rate or an isolated causal test of the patch.
 
 The completion audit was independently reproduced using NumPy 2.5.3 and SciPy 1.18.1: 4-bit/BF16 paired geometric mean **2.22×**, median ratio **2.14×**, n = 144, Wilcoxon p = **5.1×10⁻²⁵**. Exact output is retained in `results/coding/humaneval-plus/length-audit.txt`.
+
+## Mixed non-expert precision screen
+
+Completed three conversions directly from pinned BF16, with expert matrices unchanged at affine 4-bit/g64, routers at 8-bit/g64 and source-precision exclusions. A raises attention to 6-bit; B raises embeddings/head to 6-bit; C does both. All passed serialized-parameter, tokenizer, finite-forward and save/reload gates. Frozen authored development tasks, separate from HumanEval+, greedy 8,192-token budget, one sequential CUDA run per model.
+
+| Model | Weight GB | Passed | Gen s | Failed s | Tokens | Trunc / empty | CUDA MLX GB |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| bf16 | 24.301 | 20/24 | 397.4 | 82.1 | 70,353 | 1 / 1 | 26.08 |
+| 4bit | 6.837 | 15/24 | 605.1 | 286.7 | 137,037 | 7 / 7 | 8.66 |
+| mxfp4 | 6.457 | 21/24 | 323.2 | 61.9 | 73,537 | 0 / 0 | 7.86 |
+| A | 6.985 | 21/24 | 411.5 | 104.2 | 90,058 | 2 / 2 | 8.53 |
+| B | 6.950 | 14/24 | 609.9 | 344.6 | 136,333 | 9 / 8 | 8.70 |
+| C | 7.099 | 22/24 | 399.7 | 74.8 | 87,062 | 2 / 2 | 8.65 |
+
+All GB are decimal; memory is the CUDA MLX allocator peak, not system or Metal memory. Generation time includes every failed/truncated attempt. Across six models: 2,746.9 s generation, 2,943.9 s including per-run startup, sandbox tests and shutdown.
+
+**Reject all for promotion.** C gained two tasks over MXFP4 and lost one, descriptive exact McNemar p = 1.0. Its one-task net gain comes with 23.7% more generation time, 18.4% more tokens and 9.9% more weight bytes. A tied MXFP4 and was slower/larger; B did not recover the baseline. A/C substantially improved over native 4-bit, which is insufficient to recommend a final product. HumanEval+ and M4 gates were not run for these candidates.
+
+[Commands, exact sizes, integrity scope, paired failure inspection and limitations](research/NONEXPERT_EXPERIMENT.md); [immutable receipts and compressed raw responses](../results/nonexpert-v1/). One recommended follow-up: keep C as control and reduce only expert down-projection affine 4-bit group size to 32 (estimated 7.331 GB); this was not run.
+
+## Group-32 and bounded DWQ follow-up
+
+The [completed refinement experiment](research/REFINEMENT_EXPERIMENT.md) retains C as an experimental control. D (only expert down-projection groups reduced to 32) serialized to 7,329,780,326 bytes and passed 20/24. Fresh C, calibrated C and pinned MXFP4 passed 21/24, 21/24 and 22/24, respectively, under the unchanged 8,192-token development protocol. Total generation times were 379.0, 356.4 and 359.5 seconds for the three controls; D took 401.2 seconds. No recipe earns release promotion.
+
+One 32-update DWQ calibration completed after a preserved out-of-memory attempt. Only eligible scales/biases changed; packed weights, routers and BF16 exclusions remained unchanged. Teacher validation loss worsened from 0.103 to 0.158. The separate unopened 12-task mixed fixture yielded 8/12 for C, 9/12 for DWQ and 8/12 for MXFP4; DWQ took 31.1% more generation time than MXFP4. Tiny score differences and greedy CUDA repeat variability limit conclusions. See [receipts](../results/refinement-v1/) for failed attempts, integrity gates, raw responses and paired results.
+
+The matched M4 hardware gate completed for calibrated C versus MXFP4 with Visual Studio Code open and idle. Mean decode rates at 1K/4K/16K were 42.9/41.7/37.6 versus 51.6/48.9/44.2 tokens/s; measured MLX maxima were 7.83 versus 7.19 GB. The first DWQ finite-smoke stage sampled pressure flag 4 twice and swap grew from 823.88 to 4,709.38 M. Later throughput samples were flag 1; whole-sequence swap ended at 4,149.25 M. This is a fixed-order, periodic whole-system observation with other apps retained, not isolated causal attribution. [Mac summary](../results/refinement-v1/mac-summary.json) and the detailed report retain the full limitations.
+
+## Gated 1e-7 diagnostic
+
+The [bounded diagnostic](research/DWQ_DIAGNOSTIC.md) completed 32 checkpointed updates from pristine C with the unchanged corpus and cached targets. Mean repeated validation losses at steps 0/8/16/24/32 were 0.104334/0.103514/0.104570/0.104949/0.106943. Step eight’s small apparent gain was below its repeat range and overlapped the initial measurements, so step zero won the frozen loss gate. Its saved weight hashes are identical to original C and fresh-process integrity passed. No development generation, reuse of the opened 12-task set, or Mac run followed. The next substantive question is representative reasoning/tool/chat calibration, not another learning-rate decimal on this corpus.
+
+## Final experiment: MXFP4 + 8-bit attention (not shipped)
+
+Pre-registered in [PLAN.md](PLAN.md) before running. Recipe M = randmaru's recipe (MXFP4 g32, 8-bit g64 routers) plus affine 8-bit g64 attention q/k/v/o, converted from pinned BF16 on the CUDA GPU (6,772,975,475 weight bytes; loads with stock MLX-LM 0.32.0; [validation receipt](../results/release-v1/mxfp4-a8-validation.json)).
+
+**HumanEval+** (same frozen protocol and CUDA GPU as the table above): 145/164 counting `plus_status` like the earlier rows. The EvalPlus summary prints 0.878 because HumanEval/92 passes the expanded tests but not the base tests (BF16 shows the same quirk). Paired versus MXFP4: 7 tasks only M, 6 only MXFP4, exact McNemar p = 1.0. Versus 6-bit: 5 vs 6, p = 1.0. Versus BF16: 1 vs 9, p = 0.02. Completion length 1.05x MXFP4 (Wilcoxon p = 0.11); 3 budget truncations; solved within 2,048 / 4,096 tokens: 97 / 140.
+
+**M4 16 GB** (same session, MXFP4 first, three measured trials after warmup, 256 output tokens; memory-pressure level 1 throughout, swap 1.36 → 1.71 GB):
+
+| | Decode tok/s 1K / 4K / 16K | TTFT s 1K / 4K / 16K | MLX peak at 16K |
+| --- | ---: | ---: | ---: |
+| MXFP4 | 65.7 / 64.2 / 57.1 | 1.55 / 6.64 / 31.6 | 7.19 GB |
+| M | 55.0 / 53.1 / 49.0 | 1.64 / 7.04 / 31.7 | 7.51 GB |
+
+**Verdict: not shipped.** Quality tied MXFP4, size and memory passed, but decode reached only 84 / 83 / 86% of MXFP4 against the 90% gate. Attention is roughly 0.6B of the ~2.5B parameters read per decoded token, so doubling its bits costs bandwidth on every token and bought no measurable quality. Raw files: [results/release-v1/](../results/release-v1/).
+
+**Paired 6-bit rerun on the M4** (released artifact, checksums verified against its receipt; 6-bit then MXFP4 back to back): decode 47.2 / 46.0 / 42.8 vs 66.7 / 63.6 / 57.4 tok/s at 1K / 4K / 16K; MLX peak at 16K 10.51 vs 7.19 GB; TTFT at 16K 32.7 vs 31.6 s. Swap grew from 1.62 to 4.10 GB during the 6-bit 1K stage and stayed near 3.9 GB; pressure level stayed 1. This replaces the earlier unpaired comparison for recommendation purposes. MXFP4 is the default pick; 6-bit remains the closest-to-BF16 option for Macs with memory to spare.
+
+Provenance note: the candidate's CUDA GPU run happened after an unattended NVIDIA driver update (kernel module 595.91 vs NVML library 595.99; `nvidia-smi` fails, MLX CUDA works). The earlier BF16 / 6-bit / MXFP4 runs predate it. Same GPU, different driver stack. The verdict was decided by the Mac speed gate and holds either way.

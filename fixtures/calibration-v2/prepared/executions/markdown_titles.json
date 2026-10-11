@@ -1,0 +1,12 @@
+{
+  "family": "markdown_titles",
+  "solution": {
+    "sanitized": "def markdown_titles(text):\n    import re\n    out, fenced = [], False\n    for line in text.splitlines():\n        if line.startswith(\"```\"):\n            fenced = not fenced\n            continue\n        if not fenced:\n            match = re.fullmatch(r\"(#{1,6}) (.*)\", line)\n            if match:\n                out.append((len(match[1]), match[2]))\n    return out",
+    "passed": true
+  },
+  "buggy": {
+    "sanitized": "def markdown_titles(text):\n    import re\n    out, fenced = [], False\n    for line in text.splitlines():\n        if line.startswith(\"```\"):\n            fenced = not fenced\n            continue\n        if fenced:\n            match = re.fullmatch(r\"(#{1,6}) (.*)\", line)\n            if match:\n                out.append((len(match[1]), match[2]))\n    return out",
+    "passed": false,
+    "error": "AssertionError: "
+  }
+}

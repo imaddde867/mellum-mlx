@@ -1,6 +1,6 @@
 # Mellum MLX
 
-Benchmarked MLX quantizations of JetBrains' [Mellum2.1-12B-A2.5B-Thinking](https://huggingface.co/JetBrains/Mellum2.1-12B-A2.5B-Thinking) for Apple Silicon, with the measurements and tool-calling findings behind them.
+Benchmarked MLX quantizations of JetBrains' [Mellum2.1-12B-A2.5B-Thinking](https://huggingface.co/JetBrains/Mellum2.1-12B-A2.5B-Thinking) (12B MoE, 2.5B active) for Apple Silicon. Every number below comes from a full 164-task HumanEval+ run or a measured M4 MacBook Pro, with raw responses and receipts in this repo.
 
 **Model:** [imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit-g64](https://huggingface.co/imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit-g64) (9.87 GB, MLX 6-bit affine, group 64).
 
@@ -11,36 +11,42 @@ python -m mlx_lm generate --model imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit
   --temp 0.6 --top-p 0.95 --top-k 20 --max-tokens 16384
 ```
 
+**Write-up:** [Two 4-bit quantizations, same size class. One made the model think twice as long.](docs/WRITEUP.md)
+
 ## Which model for which Mac
 
 | Your Mac | Use | Why |
 | --- | --- | --- |
-| 24 GB or more | [This 6-bit](https://huggingface.co/imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit-g64) | HumanEval+ 89.0% vs 87.8% for MXFP4, a statistical tie (McNemar p = 0.80); 6-bit sits closer to BF16 at 93.3%. |
-| 16 GB | [randmaru MXFP4](https://huggingface.co/randmaru/Mellum2.1-12B-A2.5B-Thinking-mlx-mxfp4) | Ties this 6-bit on HumanEval+ at 6.46 GB. On the M4 16 GB, 6-bit peaked at 10.5 GB MLX memory with material swap. |
+| Any, including 16 GB | [randmaru MXFP4](https://huggingface.co/randmaru/Mellum2.1-12B-A2.5B-Thinking-mlx-mxfp4) | Ties 6-bit on HumanEval+ (144 vs 146, p = 0.80), decodes 34–41% faster on the M4 and peaks at 7.2 GB. |
+| 24 GB or more, want the closest to BF16 | [This 6-bit](https://huggingface.co/imaadd05/Mellum2.1-12B-A2.5B-Thinking-mlx-6bit-g64) | Fewest losses against BF16 (1 vs 8 discordant tasks), but the edge over MXFP4 is not significant. Peaks at 10.5 GB and swapped on a 16 GB M4. |
 
-I tried to build a better 16 GB model than MXFP4 (mixed 4/6-bit recipes, group-32 expert down-projections, DWQ calibration). Nothing beat it, so I stopped and recommend it. The experiments are archived under [`docs/` on the `archive/research-2026-10-11` tag](https://github.com/imaddde867/mellum-mlx/tree/archive/research-2026-10-11/docs).
+I tried to beat MXFP4 for 16 GB (mixed 4/6-bit recipes, group-32 experts, DWQ calibration, and last MXFP4 with 8-bit attention). The best of them only tied it and was slower, so I recommend MXFP4 rather than publish a near-duplicate. My own 6-bit is the right pick only if you want the closest quantization to BF16 and have the memory.
 
 ## Results
 
-164 HumanEval+ tasks, same CUDA GPU, upstream chat template, greedy decoding, 8,192 completion tokens, one sample per task:
+![HumanEval+ tasks solved within a token budget](docs/assets/solved-by-budget.svg)
 
-| Model | Weights | HumanEval+ | Median completion tokens |
-| --- | ---: | ---: | ---: |
-| BF16 original | 24.3 GB | 93.3% | 1,571 |
-| **This 6-bit** | 9.87 GB | 89.0% | 1,521 |
-| randmaru MXFP4 | 6.46 GB | 87.8% | 1,544 |
-| Plain affine 4-bit (not released) | 6.84 GB | 81.1% | 3,242 |
+164 HumanEval+ tasks, same CUDA GPU, upstream chat template, greedy decoding, 8,192 completion tokens (reasoning included), one sample per task:
 
-Apple M4 (16 GB), decode tokens/s at 1K / 4K / 16K context: 6-bit 48.0 / 47.1 / 43.5; MXFP4 67.3 / 64.5 / 58.4 (separate sequential runs, same machine). Full tables, receipts and limitations: [docs/RESULTS.md](docs/RESULTS.md).
+| Model | Weights | HumanEval+ | Hit budget | Median tokens | M4 decode tok/s (1K / 16K) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| BF16 original | 24.3 GB | 153 (93.3%) | 3 | 1,571 | n/a |
+| **6-bit (released)** | 9.87 GB | 146 (89.0%) | 3 | 1,521 | 47.2 / 42.8 |
+| randmaru MXFP4 | 6.46 GB | 144 (87.8%) | 6 | 1,544 | 66.7 / 57.4 |
+| MXFP4 + 8-bit attention (not released) | 6.77 GB | 145 (88.4%) | 3 | 1,632 | 55.0 / 49.0 |
+| Affine 4-bit (not released) | 6.84 GB | 133 (81.1%) | 18 | 3,242 | n/a |
+
+M4 numbers: 14-inch MacBook Pro, M4, 16 GB, 256 output tokens, mean of three trials after warmup. 6-bit and MXFP4 ran back to back in one session; the 8-bit-attention candidate ran with a second MXFP4 run (65.7 / 57.1) minutes earlier. Full tables, paired statistics, receipts and limitations: [docs/RESULTS.md](docs/RESULTS.md).
 
 ## Findings
 
-- **Plain affine 4-bit writes 2.2x longer completions than BF16, mostly reasoning,** on the same tasks (paired Wilcoxon p = 5e-25, n = 144), hitting the token budget mid-thought on 18 of 164. 6-bit and MXFP4 stay at BF16's completion length. The cause is not established.
+- **Affine 4-bit writes 2.2x longer completions than BF16, mostly reasoning,** on the same tasks (paired Wilcoxon p = 5e-25, n = 144), and hits the token budget mid-thought on 18 of 164. MXFP4 is smaller and stays at BF16's length. Pass@1 alone hides this. See the [write-up](docs/WRITEUP.md).
+- **Extra attention bits cost speed in a small-active MoE.** Attention is about a quarter of the weights read per token, so 8-bit attention over MXFP4 decoded 14–17% slower on the M4 and gained no measurable accuracy.
 - **MLX-LM 0.32.0 drops unparseable tool calls silently**: the response keeps `finish_reason: "tool_calls"` but `tool_calls` is empty. A tested patch is in [patches/](patches/). The same bug has an open upstream fix, [ml-explore/mlx-lm#1957](https://github.com/ml-explore/mlx-lm/pull/1957).
 - **Mellum's template replays prior reasoning only from `reasoning_content`**, but the server returns `reasoning`, so clients that echo messages back lose earlier thinking between tool steps.
 - **Repository-agent trials are weak evidence**: one task, 1 success of 3 seeds after patches. Not a reliability claim.
 
-Quantization methods and the model architecture come from upstream projects; this repository's contribution is measurement and integration.
+Quantization methods and the model architecture come from upstream projects. This repository contributes the measurement and integration work.
 
 ## Reproduce
 
@@ -90,22 +96,16 @@ python scripts/reference_score.py work/source   --mlx-reference results/cuda/bf1
 
 For isolated executable coding comparisons, see [the fixed HumanEval+ protocol](docs/CODING_PROTOCOL.md). Full samples, outcomes and provenance limitations are published in [measurement notes](docs/RESULTS.md).
 
-See [the research and experiment plan](docs/PLAN.md) and [measurement notes](docs/RESULTS.md). Reports refuse to overwrite prior measurements.
+Reports refuse to overwrite prior measurements.
 
 ## Provenance and attribution
 
 - Model: [JetBrains/Mellum2.1-12B-A2.5B-Thinking](https://huggingface.co/JetBrains/Mellum2.1-12B-A2.5B-Thinking), revision `92ddae9fc7665e9f801d141d2e5a6b2caf2460c4`, Apache-2.0. JetBrains created and trained the model.
 - Runtime: [MLX-LM](https://github.com/ml-explore/mlx-lm), tested package `0.32.0`; [MLX](https://github.com/ml-explore/mlx), `0.32.3`.
-- Quantization: affine group size 64; 4 or 6 bits for eligible weights, native 8-bit Mellum routers, remaining weights BF16. Router protection is upstream behaviour, not a novel method introduced here.
+- Quantization: native affine group size 64; 4 or 6 bits for eligible weights, native 8-bit Mellum routers, remaining weights BF16. Experimental recipes (`--recipe A|B|C|D|M`) are documented in the research archive. Router protection is upstream behaviour, not a novel method introduced here.
 - External comparator: [randmaru MXFP4](https://huggingface.co/randmaru/Mellum2.1-12B-A2.5B-Thinking-mlx-mxfp4), revision `4ce0d28df07dfa4ed28077e5b718e866be2cf4cf`. Credit belongs to its publisher.
 - This repository's original scripts: MIT. The MIT license does not relicense JetBrains' weights or third-party code.
 
-## DWQ pilot
+## Research archive
 
-```sh
-python scripts/dwq_pilot.py targets
-# Start a new process so the BF16 teacher does not coexist with the student.
-python scripts/dwq_pilot.py train
-```
-
-This performs one update on separate authored pilot data. It tests compatibility, not quality improvement. An initial save/reload discrepancy was not reproduced on the instrumented repeat and remains unresolved; see the measurement notes. Do not publish the pilot as a tuned model.
+The experiments that didn't ship are documented with their pre-registered rules, failed attempts and receipts: [mixed non-expert precision](docs/research/NONEXPERT_EXPERIMENT.md), [group-32 and bounded DWQ](docs/research/REFINEMENT_EXPERIMENT.md), [DWQ learning-rate diagnostic](docs/research/DWQ_DIAGNOSTIC.md), [calibration v2](docs/research/CALIBRATION_V2.md), and the final [MXFP4 + 8-bit attention run](docs/RESULTS.md#final-experiment-mxfp4--8-bit-attention-not-shipped). The release plan and ship rule are in [docs/PLAN.md](docs/PLAN.md).

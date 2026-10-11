@@ -1,6 +1,6 @@
 # Measurement notes
 
-Initial measurements: 2026-10-09. CUDA GPU, GPU VRAM, driver 595.91.07. MLX 0.32.3 / MLX-LM 0.32.0. CUDA and Metal results are reported separately below.
+Initial measurements: 2026-10-09. NVIDIA GPU (CUDA), driver 595.91.07. MLX 0.32.3 / MLX-LM 0.32.0. CUDA and Metal results are reported separately below.
 
 ## Artifact checks
 
@@ -254,12 +254,12 @@ MLX peak at 16K: NVFP4 7.569 GB, MXFP4 7.192 GB. Cross-check on the CUDA GPU (sa
 | 4K (n = 12) | 64.3 | 61.4 | **95.5%** | 95.5% | 95.4 to 95.5% |
 | 16K (n = 12) | 58.3 | 55.8 | **95.7%** | 95.7% | 95.6 to 95.7% |
 
-TTFT was equal, at 1.58 / 7.02 / 31.5 s for MXFP4 and 1.60 / 7.08 / 31.8 s for NVFP4. MLX peak at 16K: 7.569 vs 7.192 GB. The ratio matches the CUDA GPU cross-check (about 96%) and NVFP4's extra bytes per weight. Raw files: `results/release-v1/mac-abba-clean/`, produced by `work/mac-abba-clean.sh`, which refuses to run below 60 W or in Low Power Mode.
+TTFT was equal, at 1.58 / 7.02 / 31.5 s for MXFP4 and 1.60 / 7.08 / 31.8 s for NVFP4. MLX peak at 16K: 7.569 vs 7.192 GB. The ratio matches the CUDA cross-check (about 96%) and NVFP4's extra bytes per weight. Raw files: `results/release-v1/mac-abba-clean/`, produced by `work/mac-abba-clean.sh`, which refuses to run below 60 W or in Low Power Mode.
 
 ### Verdict and limitations
 
 **All three pre-registered gates pass.** Against MXFP4, NVFP4 is about 30% closer to BF16 by teacher-forced KL, ties on HumanEval+ (145 vs 144, p = 1.0) and decodes at 95 to 96% of its speed. It writes 1.12x longer completions than MXFP4 (1.09x BF16; Wilcoxon p = 0.0002 and 0.0005), so a finished HumanEval-style answer takes roughly 15% longer. It weighs 6.84 GB, and its 16K peak is 0.03 GB under the 7.6 GB limit.
 
-Limitations: single greedy HumanEval+ run; possible training overlap; KL measured on a 32-trajectory Python pilot corpus; the MXFP4 HumanEval+ and calibration baselines predate the CUDA GPU driver update, while the NVFP4 runs came after it.
+Limitations: single greedy HumanEval+ run; possible training overlap; KL measured on a 32-trajectory Python pilot corpus; the MXFP4 HumanEval+ and calibration baselines predate the GPU driver update, while the NVFP4 runs came after it.
 
 Process notes: the first calibration run failed on a relative path and was re-run from the repository root. The scorer hash differs from the MXFP4 receipt because an `nvfp4` label and a `compare-nvfp4` stage were added; the scoring path is unchanged. `scripts/pair_audit.py` is new. The manifest summary moved into a tested `quantization_summary` helper. Captured NVFP4 logits are kept on the CUDA host under `~/mellum-nvfp4-evidence/`.

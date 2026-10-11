@@ -4,7 +4,7 @@ The proposed follow-up has now been implemented and measured in the [group-32 an
 
 Completed 2026-10-09 on the CUDA GPU. **No candidate promoted.** Attention restoration helped the native affine 4-bit baseline on this screen, but none demonstrated a credible improvement over the pinned MXFP4 competitor. These are CUDA results, not M4 performance.
 
-Original source: `JetBrains/Mellum2.1-12B-A2.5B-Thinking` at `92ddae9fc7665e9f801d141d2e5a6b2caf2460c4`. External comparator: `randmaru/Mellum2.1-12B-A2.5B-Thinking-mlx-mxfp4` at `4ce0d28df07dfa4ed28077e5b718e866be2cf4cf`; its weight SHA-256 is `b6224c8ea3e32190acc1500ce513d39263be257c6c71a10a31e832c045d2cb9a`. The existing GPU environment and downloads were reused. Unrelated local work and the previous pilot's evidence were preserved; that pilot had finished before these conversions began.
+Original source: `JetBrains/Mellum2.1-12B-A2.5B-Thinking` at `92ddae9fc7665e9f801d141d2e5a6b2caf2460c4`. External comparator: `randmaru/Mellum2.1-12B-A2.5B-Thinking-mlx-mxfp4` at `4ce0d28df07dfa4ed28077e5b718e866be2cf4cf`; its weight SHA-256 is `b6224c8ea3e32190acc1500ce513d39263be257c6c71a10a31e832c045d2cb9a`. The existing CUDA environment and downloads were reused. Unrelated local work and the previous pilot's evidence were preserved; that pilot had finished before these conversions began.
 
 The inspected model has untied embedding and output-head weights: 112 attention projections, two embedding/head modules, 84 stacked expert matrices, 28 routers, and 113 excluded BF16 tensors. The converter checks the complete eligible-module set before quantization. Its tied-embedding policy is unit-tested, although this checkpoint is untied.
 

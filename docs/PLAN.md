@@ -60,6 +60,6 @@ Ship NVFP4 as the 16 GB pick only if ALL hold:
 
 Otherwise: no new weights, the result is recorded, and research ends permanently.
 
-Preconditions, not gates: if NVFP4 kernels are missing on either backend (Metal or CUDA), or the artifact does not load with stock mlx-lm, the experiment stops and is reported as such. Known confound, recorded in advance: the MXFP4 HumanEval+ and calibration baselines were produced before the CUDA GPU driver update noted in RESULTS.md.
+Preconditions, not gates: if NVFP4 kernels are missing on either backend (Metal or CUDA), or the artifact does not load with stock mlx-lm, the experiment stops and is reported as such. Known confound, recorded in advance: the MXFP4 HumanEval+ and calibration baselines were produced before the GPU driver update noted in RESULTS.md.
 
 Outcome (2026-10-11): **all three gates pass.** KL to BF16 was 29 to 34% lower and HumanEval+ was 145 vs 144 (p = 1.0). The clean interleaved M4 run (68 W charger, idle machine) gave 95.1 / 95.5 / 95.7% of MXFP4 decode; two earlier, power-limited M4 runs were invalidated. NVFP4 also writes 1.12x longer completions than MXFP4. Publication needs owner approval. Research is closed. Details in [RESULTS.md](RESULTS.md#nvfp4-one-shot).

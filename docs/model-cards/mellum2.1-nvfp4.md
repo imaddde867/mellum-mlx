@@ -60,7 +60,7 @@ M4 MacBook Pro 16 GB, NVFP4 then MXFP4 back to back, 256 output tokens, three tr
 | NVFP4 | 59.5 / 59.9 / 45.2 | 7.57 GB |
 | MXFP4 (same session) | 59.0 / 52.6 / 33.7 | 7.19 GB |
 
-Caveats: this session ran on battery power and the MXFP4 leg was degraded (individual trials as low as 23.5 tok/s). MXFP4 measured 65.7 / 64.2 / 57.1 in an earlier, clean session, so treat NVFP4 as roughly comparable to MXFP4 at 1K and unconfirmed at 4K and 16K. NVFP4 uses about 0.4 GB more memory and its 16K peak sits only 0.03 GB under the 7.6 GB line used for the 16 GB recommendation.
+Caveats: this session ran on battery power with memory pressure and swap growth during the NVFP4 leg too, and individual MXFP4 trials ranged from 23.5 to 61.6 tok/s. MXFP4 has measured 51.6 to 67.3 tok/s at 1K across other sessions. Treat NVFP4 as roughly comparable to MXFP4 on speed, unconfirmed. NVFP4 uses about 0.4 GB more memory and its 16K peak sits only 0.03 GB under the 7.6 GB line used for the 16 GB recommendation.
 
 ## Which build to use
 

@@ -199,7 +199,7 @@ Provenance note: the candidate's RTX 5090 run happened after an unattended NVIDI
 
 Pre-registered in [PLAN.md](PLAN.md#nvfp4-one-shot-pre-registered-2026-10-11) before any NVFP4 model existed. Recipe N: NVFP4 (4-bit, group 16, FP8 scales) on every eligible module including attention, experts, embeddings and head; routers affine 8-bit g64. Converted from pinned BF16 on the RTX 5090 with stock MLX 0.32.3 / MLX-LM 0.32.0. **6,836,663,555 weight bytes** (MXFP4: 6.46 GB). Loads and generates with stock MLX-LM on CUDA; the [validation receipt](../results/release-v1/nvfp4-validation.json) and [conversion manifest](../results/release-v1/nvfp4-conversion.json) are committed. NVFP4 kernels (`quantize`, `quantized_matmul`, `gather_qmm`) were checked on both Metal and CUDA before conversion.
 
-**Verdict: all three gates met, gate 3 only at the threshold.** Fidelity and HumanEval+ passed. On an interleaved M4 measurement NVFP4 decoded at 98.7 / 95.2 / 95.1% of MXFP4 (gate: 95%). An earlier bracketed run that showed 77 to 82% was invalid; see below. The ship decision is the owner's.
+**Verdict: all three gates pass.** Fidelity and HumanEval+ passed. On a clean, interleaved M4 run (68 W charger, idle machine) NVFP4 decoded at 95.1 / 95.5 / 95.7% of MXFP4 against the 95% gate, with every round within 0.2 points. Two earlier M4 runs were invalidated by power limits; see below.
 
 ### Gate 1: fidelity (passes)
 
@@ -246,9 +246,19 @@ Against either bracket alone the range is 75.5 to 83.5%. Swap grew from 1.8 to 4
 
 MLX peak at 16K: NVFP4 7.569 GB, MXFP4 7.192 GB. Cross-check on the RTX 5090 (same scripts, interleaved, two rounds, 12 trials per cell, very low spread): 96.0 / 95.5 / 96.4%. That matches NVFP4's ~6% extra bytes per weight (4.5 vs 4.25 bits). Raw files: `results/release-v1/mac-abba/` and `results/release-v1/cuda-nvfp4-bench/`.
 
+**Clean interleaved run (definitive gate 3).** Same A-B-B-A design on the MacBook's own charger, which negotiated 68 W for all 28 runs, with nothing else running. Memory pressure stayed at level 1 throughout, the battery charged from 34% to 58%, and swap held at 1.3 GB.
+
+| | MXFP4 mean | NVFP4 mean | NVFP4 / MXFP4 (mean) | (median) | Per-round range |
+| --- | ---: | ---: | ---: | ---: | --- |
+| 1K (n = 18) | 67.2 | 63.9 | **95.1%** | 94.9% | 95.0 to 95.1% |
+| 4K (n = 12) | 64.3 | 61.4 | **95.5%** | 95.5% | 95.4 to 95.5% |
+| 16K (n = 12) | 58.3 | 55.8 | **95.7%** | 95.7% | 95.6 to 95.7% |
+
+TTFT was equal, at 1.58 / 7.02 / 31.5 s for MXFP4 and 1.60 / 7.08 / 31.8 s for NVFP4. MLX peak at 16K: 7.569 vs 7.192 GB. The ratio matches the 5090 cross-check (about 96%) and NVFP4's extra bytes per weight. Raw files: `results/release-v1/mac-abba-clean/`, produced by `work/mac-abba-clean.sh`, which refuses to run below 60 W or in Low Power Mode.
+
 ### Verdict and limitations
 
-**Gate 3 is met on the pre-registered statistic (means), but only by 0.1 to 0.2 points at 4K and 16K, well inside the per-round spread.** The medians fall just under 95%. The honest reading is that NVFP4 decodes at roughly 95 to 99% of MXFP4 on the M4 and 96% on CUDA. Overall: about 30% closer to BF16 by teacher-forced KL; tied on HumanEval+ (145 vs 144, p = 1.0); 1.12x longer completions than MXFP4 (1.09x BF16; Wilcoxon p = 0.0002 and 0.0005). That makes time to a finished answer roughly 15% longer than MXFP4 on HumanEval-style tasks. It weighs 6.84 GB, and its 16K peak is 0.03 GB under the 7.6 GB limit. Ship decision: owner.
+**All three pre-registered gates pass.** Against MXFP4, NVFP4 is about 30% closer to BF16 by teacher-forced KL, ties on HumanEval+ (145 vs 144, p = 1.0) and decodes at 95 to 96% of its speed. It writes 1.12x longer completions than MXFP4 (1.09x BF16; Wilcoxon p = 0.0002 and 0.0005), so a finished HumanEval-style answer takes roughly 15% longer. It weighs 6.84 GB, and its 16K peak is 0.03 GB under the 7.6 GB limit.
 
 Limitations: single greedy HumanEval+ run; possible training overlap; KL measured on a 32-trajectory Python pilot corpus; the MXFP4 HumanEval+ and calibration baselines predate the 5090 driver update, while the NVFP4 runs came after it.
 

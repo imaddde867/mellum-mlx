@@ -40,15 +40,15 @@ Four attempts to beat MXFP4 at 16 GB tied or lost: mixed 4/6-bit, group-32 exper
 | **6-bit (this release)** | 9.87 GB | 146 (89.0%) | 3 | 1,521 | 47.2 / 42.8 |
 | randmaru MXFP4 | 6.46 GB | 144 (87.8%) | 6 | 1,544 | 66.7 / 57.4 |
 | MXFP4 + 8-bit attention | 6.77 GB | 145 (88.4%) | 3 | 1,632 | 55.0 / 49.0 |
-| NVFP4 | 6.84 GB | 145 (88.4%) | 6 | 1,674 | 53.8 / 47.7 |
+| NVFP4 | 6.84 GB | 145 (88.4%) | 6 | 1,674 | 63.9 / 55.8 |
 | Affine 4-bit | 6.84 GB | 133 (81.1%) | 18 | 3,242 | n/a |
 
-HumanEval+ setup: all 164 tasks on one RTX 5090, upstream chat template, greedy decoding, 8,192-token budget that includes reasoning, one sample per task. M4 setup: 14-inch MacBook Pro with 16 GB, 256 output tokens, mean of three trials after warmup. Each unreleased candidate ran in the same session as MXFP4. NVFP4 was interleaved A-B-B-A with MXFP4, which averaged 54.5 / 50.2 in that session. Paired statistics and limitations are in [docs/RESULTS.md](docs/RESULTS.md).
+HumanEval+ setup: all 164 tasks on one RTX 5090, upstream chat template, greedy decoding, 8,192-token budget that includes reasoning, one sample per task. M4 setup: 14-inch MacBook Pro with 16 GB, 256 output tokens, mean of three trials after warmup. Each unreleased candidate ran in the same session as MXFP4. NVFP4 was interleaved A-B-B-A with MXFP4 on a 68 W charger, with MXFP4 averaging 67.2 / 58.3 in that session. Paired statistics and limitations are in [docs/RESULTS.md](docs/RESULTS.md).
 
 ## Findings
 
 1. **Affine 4-bit makes the model think 2.2× longer.** Its completions were 2.2× BF16's length on the same tasks (Wilcoxon p = 5×10⁻²⁵) and hit the budget mid-reasoning on 18 tasks. MXFP4 is smaller and stays at BF16's length. A plain pass@1 score hides this. [Write-up](docs/WRITEUP.md).
-2. **Closer to BF16 isn't automatically better to use.** NVFP4 is about 30% closer to BF16 than MXFP4 by KL divergence and decodes at 95 to 99% of its speed. It still only tied on HumanEval+ and wrote 12% longer completions.
+2. **Closer to BF16 isn't automatically better to use.** NVFP4 is about 30% closer to BF16 than MXFP4 by KL divergence and decodes at 95 to 96% of its speed. It still only tied on HumanEval+ and wrote 12% longer completions.
 3. **Extra attention bits cost speed in a small-active MoE.** Attention is about a quarter of the weights read for each token. Raising it to 8-bit on top of MXFP4 cost 14 to 17% decode speed and gained no measurable accuracy.
 4. **MLX-LM 0.32.0 silently drops tool calls it can't parse.** The response keeps `finish_reason: "tool_calls"` with an empty `tool_calls` list. A tested patch is in [patches/](patches/), and an upstream fix is open in [mlx-lm#1957](https://github.com/ml-explore/mlx-lm/pull/1957).
 5. **Reasoning gets lost in tool loops.** Mellum's template replays prior reasoning only from `reasoning_content`, but the server returns it as `reasoning`.

@@ -199,7 +199,7 @@ Provenance note: the candidate's CUDA GPU run happened after an unattended NVIDI
 
 Pre-registered in [PLAN.md](PLAN.md#nvfp4-one-shot-pre-registered-2026-10-11) before any NVFP4 model existed. Recipe N: NVFP4 (4-bit, group 16, FP8 scales) on every eligible module including attention, experts, embeddings and head; routers affine 8-bit g64. Converted from pinned BF16 on the CUDA GPU with stock MLX 0.32.3 / MLX-LM 0.32.0. **6,836,663,555 weight bytes** (MXFP4: 6.46 GB). Loads and generates with stock MLX-LM on CUDA; the [validation receipt](../results/release-v1/nvfp4-validation.json) and [conversion manifest](../results/release-v1/nvfp4-conversion.json) are committed. NVFP4 kernels (`quantize`, `quantized_matmul`, `gather_qmm`) were checked on both Metal and CUDA before conversion.
 
-**Verdict: not shipped.** Fidelity and HumanEval+ passed. On a clean M4 rerun NVFP4 decoded at 77 to 82% of MXFP4 against the 95% gate.
+**Verdict: all three gates met, gate 3 only at the threshold.** Fidelity and HumanEval+ passed. On an interleaved M4 measurement NVFP4 decoded at 98.7 / 95.2 / 95.1% of MXFP4 (gate: 95%). An earlier bracketed run that showed 77 to 82% was invalid; see below. The ship decision is the owner's.
 
 ### Gate 1: fidelity (passes)
 
@@ -219,11 +219,11 @@ NVFP4's five repeats were identical within each region (range 0), so its interva
 
 Frozen protocol, CUDA GPU, `plus_status == 'pass'` counting: **145/164** versus MXFP4's 144. The EvalPlus summary prints 0.884 (base 0.927). Paired versus MXFP4: 7 tasks only NVFP4, 6 only MXFP4, exact McNemar p = 1.0, so this is a tie, not an improvement. Budget truncations 6 versus 6. Median completion tokens 1,674 versus 1,544; on tasks where both stopped (n = 154) NVFP4 used 1.11x the tokens (Wilcoxon p = 0.0002), i.e. it thinks somewhat longer. Solved within 2,048 / 4,096 tokens: 101 / 140 versus 109 / 139. [Audit output](../results/release-v1/humaneval-plus/pair-audit-nvfp4.txt), [samples and evaluation](../results/release-v1/humaneval-plus/). The weight hashes in the generation receipt equal those in the validation receipt.
 
-### Gate 3: M4 16 GB (fails)
+### Gate 3: M4 16 GB (met at the threshold)
 
 The first M4 session (`nvfp4-*`, `mxfp4-nvfp4pair-*`, `system-nvfp4.log`) ran on battery with memory pressure reaching level 2. MXFP4 trials in it ranged from 23.5 to 61.6 tok/s, so it was discarded as a speed measurement. That decision was made before seeing the rerun.
 
-The rerun was on AC power with memory pressure at level 1 throughout. It ran MXFP4, then NVFP4, then MXFP4 again, so NVFP4 sits between two measurements of the control. Each leg is three measured trials after warmup, 256 tokens.
+A second run (below) was on a 20 W USB-C adapter with memory pressure at level 1 throughout. It ran MXFP4, then NVFP4, then MXFP4 again, so NVFP4 sits between two measurements of the control. Each leg is three measured trials after warmup, 256 tokens.
 
 | | Decode tok/s 1K / 4K / 16K | MLX peak at 16K |
 | --- | ---: | ---: |
@@ -234,9 +234,21 @@ The rerun was on AC power with memory pressure at level 1 throughout. It ran MXF
 
 Against either bracket alone the range is 75.5 to 83.5%. Swap grew from 1.8 to 4.1 GB across the session, which affected both models. The extra bytes explain only about 6% of the gap (4.5 vs 4.25 bits per weight). The rest is the NVFP4 decode kernels on Metal in MLX 0.32.3. Raw files: `results/release-v1/mac/{mxfp4-clean-a,nvfp4-clean,mxfp4-clean-b}-*.json` and `system-nvfp4-clean.log`.
 
+**That bracketed run is invalid.** The adapter negotiated only 20 W, and the battery drained from 60% to 50% while reporting AC power. The machine was power-limited in a way that varied over time, and a single bracket can't separate that from model speed.
+
+**Interleaved re-measurement (the gate 3 result).** Same 20 W adapter. Models alternated A-B-B-A, with the starting model flipped each round: 3 rounds at 1K and 2 rounds each at 4K and 16K, three measured trials per run. Battery state, adapter wattage, memory pressure and swap were logged before every run; pressure stayed at level 1 and the battery went from 49 to 33%. A power cap would hit both models in matched slots.
+
+| | MXFP4 mean | NVFP4 mean | NVFP4 / MXFP4 (mean) | (median) | Per-round range |
+| --- | ---: | ---: | ---: | ---: | --- |
+| 1K (n = 18 per model) | 54.5 | 53.8 | **98.7%** | 97.4% | 97.2 to 101.6% |
+| 4K (n = 12) | 52.0 | 49.6 | **95.2%** | 94.5% | 90.9 to 99.3% |
+| 16K (n = 12) | 50.2 | 47.7 | **95.1%** | 94.4% | 90.4 to 100.2% |
+
+MLX peak at 16K: NVFP4 7.569 GB, MXFP4 7.192 GB. Cross-check on the CUDA GPU (same scripts, interleaved, two rounds, 12 trials per cell, very low spread): 96.0 / 95.5 / 96.4%. That matches NVFP4's ~6% extra bytes per weight (4.5 vs 4.25 bits). Raw files: `results/release-v1/mac-abba/` and `results/release-v1/cuda-nvfp4-bench/`.
+
 ### Verdict and limitations
 
-**Not shipped: gate 3 fails.** NVFP4 is about 30% closer to BF16 than MXFP4 by teacher-forced KL, but that didn't show up on HumanEval+ (145 vs 144, p = 1.0). It also writes 1.12x longer completions than MXFP4 and 1.09x longer than BF16 (Wilcoxon p = 0.0002 and 0.0005), and it decodes about 20% slower on the M4. For a 16 GB Mac, MXFP4 remains the better build to use. Research is closed.
+**Gate 3 is met on the pre-registered statistic (means), but only by 0.1 to 0.2 points at 4K and 16K, well inside the per-round spread.** The medians fall just under 95%. The honest reading is that NVFP4 decodes at roughly 95 to 99% of MXFP4 on the M4 and 96% on CUDA. Overall: about 30% closer to BF16 by teacher-forced KL; tied on HumanEval+ (145 vs 144, p = 1.0); 1.12x longer completions than MXFP4 (1.09x BF16; Wilcoxon p = 0.0002 and 0.0005). That makes time to a finished answer roughly 15% longer than MXFP4 on HumanEval-style tasks. It weighs 6.84 GB, and its 16K peak is 0.03 GB under the 7.6 GB limit. Ship decision: owner.
 
 Limitations: single greedy HumanEval+ run; possible training overlap; KL measured on a 32-trajectory Python pilot corpus; the MXFP4 HumanEval+ and calibration baselines predate the CUDA GPU driver update, while the NVFP4 runs came after it.
 
